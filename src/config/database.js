@@ -1,0 +1,57 @@
+'use strict';
+
+require('dotenv').config();
+const { Sequelize } = require('sequelize');
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host:    process.env.DB_HOST,
+    port:    parseInt(process.env.DB_PORT) || 5432,
+    dialect: 'postgres',
+
+    // SSL obligatorio en AWS RDS, desactivado en local
+    dialectOptions: isProduction || process.env.DB_SSL === 'true'
+      ? { ssl: { require: true, rejectUnauthorized: false } }
+      : {},
+
+    // Pool de conexiones — importante para múltiples tenants simultáneos
+    pool: {
+      max:     10,   // máximo de conexiones abiertas
+      min:     2,    // mínimo mantenidas en reposo
+      acquire: 30000, // ms antes de lanzar error si no hay conexión disponible
+      idle:    10000  // ms antes de liberar una conexión inactiva
+    },
+
+    // Logs: solo en desarrollo, silencioso en producción
+    logging: isProduction ? false : (msg) => console.log(`[DB] ${msg}`),
+
+    // Convenciones del schema — snake_case, timestamps automáticos
+    define: {
+      underscored:   true,   // snake_case en columnas
+      timestamps:    true,   // created_at y updated_at automáticos
+      createdAt:     'created_at',
+      updatedAt:     'updated_at',
+      freezeTableName: false // Sequelize pluraliza los nombres de tabla
+    },
+
+    timezone: '-05:00', // Ecuador (UTC-5)
+  }
+);
+
+// Función para verificar la conexión al iniciar el servidor
+const connectDB = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log(`[DB] Conexión establecida — ${process.env.DB_NAME}@${process.env.DB_HOST}`);
+  } catch (error) {
+    console.error('[DB] Error de conexión:', error.message);
+    process.exit(1); // Si no hay DB, el servidor no debe arrancar
+  }
+};
+
+module.exports = { sequelize, connectDB };

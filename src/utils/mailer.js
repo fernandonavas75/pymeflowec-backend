@@ -1,0 +1,42 @@
+'use strict';
+
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  host:   process.env.MAIL_HOST,
+  port:   parseInt(process.env.MAIL_PORT, 10),
+  secure: process.env.MAIL_PORT === '465',
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
+
+const sendPasswordResetEmail = async (to, fullName, resetToken) => {
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  await transporter.sendMail({
+    from:    `"PymeFlowEc" <${process.env.MAIL_USER}>`,
+    to,
+    subject: 'Recuperación de contraseña — PymeFlowEc',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1f3864;">Recuperación de contraseña</h2>
+        <p>Hola <strong>${fullName}</strong>,</p>
+        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+        <p>Haz clic en el siguiente botón para continuar:</p>
+        <a href="${resetUrl}"
+           style="display:inline-block; padding:12px 24px; background:#2e75b6;
+                  color:#fff; text-decoration:none; border-radius:4px; margin:16px 0;">
+          Restablecer contraseña
+        </a>
+        <p>Este enlace expira en <strong>30 minutos</strong>.</p>
+        <p>Si no solicitaste este cambio, ignora este correo.</p>
+        <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
+        <p style="color:#999; font-size:12px;">PymeFlowEc — Sistema ERP para PYMEs</p>
+      </div>
+    `,
+  });
+};
+
+module.exports = { transporter, sendPasswordResetEmail };
