@@ -1,5 +1,5 @@
 'use strict';
-
+// 20260329002-add-soft-delete-to-clients-suppliers-products.js
 const TABLES = ['clients', 'suppliers', 'products'];
 
 module.exports = {

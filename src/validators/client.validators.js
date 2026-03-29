@@ -7,9 +7,9 @@ const createRules = [
   body('identification')
     .trim()
     .notEmpty().withMessage('La identificación es requerida.')
-    .isLength({ min: 10, max: 13 }).withMessage('La identificación debe tener entre 10 y 13 caracteres.'),
+    .isLength({ min: 10, max: 10 }).withMessage('La identificación debe tener 10 caracteres.'),
   body('email').optional().isEmail().withMessage('Email inválido.').normalizeEmail(),
-  body('phone').optional().trim().isLength({ max: 20 }).withMessage('Teléfono inválido.'),
+  body('phone').optional().trim().isLength({ max: 10 }).withMessage('Teléfono inválido.'),
   body('address').optional().trim(),
 ];
 
@@ -18,9 +18,9 @@ const updateRules = [
   body('identification')
     .optional()
     .trim()
-    .isLength({ min: 10, max: 13 }).withMessage('La identificación debe tener entre 10 y 13 caracteres.'),
+    .isLength({ min: 10, max: 10 }).withMessage('La identificación debe tener 10 caracteres.'),
   body('email').optional().isEmail().withMessage('Email inválido.').normalizeEmail(),
-  body('phone').optional().trim().isLength({ max: 20 }).withMessage('Teléfono inválido.'),
+  body('phone').optional().trim().isLength({ max: 10 }).withMessage('Teléfono inválido.'),
   body('address').optional().trim(),
 ];
 

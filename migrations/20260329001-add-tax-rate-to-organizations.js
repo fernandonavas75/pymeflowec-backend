@@ -1,5 +1,5 @@
 'use strict';
-
+// 20260329001-add-tax-rate-to-organizations.js
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn('organizations', 'tax_rate', {
