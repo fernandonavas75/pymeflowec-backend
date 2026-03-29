@@ -1,5 +1,7 @@
 'use strict';
 
+const logger = require('../utils/logger');
+
 class AppError extends Error {
   constructor(message, status = 500) {
     super(message);
@@ -45,7 +47,7 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Error desconocido
-  console.error('[ERROR NO CONTROLADO]', err);
+  logger.error('[ERROR NO CONTROLADO]', { message: err.message, stack: err.stack });
   res.status(500).json({
     success: false,
     message: 'Error interno del servidor.',

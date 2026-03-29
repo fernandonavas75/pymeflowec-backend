@@ -4,21 +4,28 @@ const { sequelize } = require('../config/database');
 const { Invoice, InvoiceDetail, Order, OrderDetail, Product, Organization } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const TAX_RATE = 0.12;
 
-const generateInvoiceNumber = async (organizationId) => {
-  const org = await Organization.findByPk(organizationId);
-  const ruc4 = org.ruc.substring(0, 4);
-  const count = await Invoice.count({ where: { organization_id: organizationId } });
-  const seq = String(count + 1).padStart(6, '0');
+// Debe llamarse siempre dentro de una transacción activa.
+// El lock sobre Organization serializa la generación del número:
+// ninguna segunda transacción puede avanzar hasta que la primera haga commit.
+const generateInvoiceNumber = async (organizationId, transaction) => {
+  const org = await Organization.findByPk(organizationId, {
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  const ruc4  = org.ruc.substring(0, 4);
+  const count = await Invoice.count({ where: { organization_id: organizationId }, transaction });
+  const seq   = String(count + 1).padStart(6, '0');
   return `FAC-${ruc4}-${seq}`;
 };
 
-const list = async (organizationId) => {
-  return await Invoice.findAll({
+const list = async (organizationId, { limit, offset } = {}) => {
+  return await Invoice.findAndCountAll({
     where: { organization_id: organizationId },
     include: [{ model: Order, as: 'order', attributes: ['id', 'status'] }],
     order: [['created_at', 'DESC']],
+    limit,
+    offset,
   });
 };
 
@@ -48,9 +55,9 @@ const createFromOrder = async (orderId, organizationId) => {
   const existing = await Invoice.findOne({ where: { order_id: orderId } });
   if (existing) throw new AppError('Esta orden ya tiene una factura generada.', 409);
 
-  const invoice_number = await generateInvoiceNumber(organizationId);
-
   return await sequelize.transaction(async (t) => {
+    const invoice_number = await generateInvoiceNumber(organizationId, t);
+
     const invoice = await Invoice.create({
       organization_id: organizationId,
       order_id:        orderId,
@@ -78,9 +85,11 @@ const createManual = async (data, organizationId) => {
   const { items } = data;
   if (!items || items.length === 0) throw new AppError('La factura debe tener al menos un ítem.', 400);
 
-  const invoice_number = await generateInvoiceNumber(organizationId);
+  const org     = await Organization.findByPk(organizationId);
+  const taxRate = parseFloat(org.tax_rate);
 
   return await sequelize.transaction(async (t) => {
+    const invoice_number = await generateInvoiceNumber(organizationId, t);
     let subtotal = 0;
     const details = [];
 
@@ -102,7 +111,7 @@ const createManual = async (data, organizationId) => {
       });
     }
 
-    const tax   = parseFloat((subtotal * TAX_RATE).toFixed(2));
+    const tax   = parseFloat((subtotal * taxRate).toFixed(2));
     const total = parseFloat((subtotal + tax).toFixed(2));
 
     const invoice = await Invoice.create({

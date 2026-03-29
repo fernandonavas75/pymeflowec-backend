@@ -1,15 +1,18 @@
 'use strict';
 
 const service = require('../services/order.service');
+const { parsePagination, paginatedResponse } = require('../utils/pagination');
 
 const list = async (req, res, next) => {
   try {
-    const data = await service.list(
+    const { page, limit, offset } = parsePagination(req.query);
+    const result = await service.list(
       req.user.organization_id,
       req.user.id,
-      req.user.role.name
+      req.user.role.name,
+      { limit, offset }
     );
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) {
     next(err);
   }

@@ -49,6 +49,15 @@ const Organization = sequelize.define('Organization', {
       isIn: [['active', 'inactive']],
     },
   },
+  tax_rate: {
+    type:         DataTypes.DECIMAL(5, 4),
+    allowNull:    false,
+    defaultValue: 0.12,
+    validate: {
+      min: 0,
+      max: 1,
+    },
+  },
 }, {
   tableName:  'organizations',
   timestamps: true,

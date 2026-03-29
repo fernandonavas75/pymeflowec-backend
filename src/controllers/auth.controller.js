@@ -5,9 +5,6 @@ const authService = require('../services/auth.service');
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email y contraseña requeridos.' });
-    }
     const data = await authService.login(email, password);
     res.status(200).json({ success: true, data });
   } catch (err) {
@@ -27,9 +24,6 @@ const me = async (req, res, next) => {
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email requerido.' });
-    }
     await authService.forgotPassword(email);
     res.status(200).json({
       success: true,
@@ -43,12 +37,6 @@ const forgotPassword = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password) {
-      return res.status(400).json({ success: false, message: 'Token y contraseña requeridos.' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 8 caracteres.' });
-    }
     await authService.resetPassword(token, password);
     res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente.' });
   } catch (err) {
@@ -56,4 +44,14 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-module.exports = { login, me, forgotPassword, resetPassword };
+const refresh = async (req, res, next) => {
+  try {
+    const { refresh_token } = req.body;
+    const data = await authService.refresh(refresh_token);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { login, me, forgotPassword, resetPassword, refresh };

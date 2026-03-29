@@ -1,11 +1,13 @@
 'use strict';
 
 const service = require('../services/user.service');
+const { parsePagination, paginatedResponse } = require('../utils/pagination');
 
 const list = async (req, res, next) => {
   try {
-    const data = await service.list(req.user.organization_id);
-    res.status(200).json({ success: true, data });
+    const { page, limit, offset } = parsePagination(req.query);
+    const result = await service.list(req.user.organization_id, { limit, offset });
+    res.status(200).json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) {
     next(err);
   }
@@ -59,9 +61,6 @@ const deactivate = async (req, res, next) => {
 const changePassword = async (req, res, next) => {
   try {
     const { current_password, new_password } = req.body;
-    if (!current_password || !new_password) {
-      return res.status(400).json({ success: false, message: 'Contraseña actual y nueva requeridas.' });
-    }
     await service.changePassword(req.params.id, current_password, new_password, req.user.organization_id);
     res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente.' });
   } catch (err) {

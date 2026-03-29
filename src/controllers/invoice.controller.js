@@ -1,11 +1,13 @@
 'use strict';
 
 const service = require('../services/invoice.service');
+const { parsePagination, paginatedResponse } = require('../utils/pagination');
 
 const list = async (req, res, next) => {
   try {
-    const data = await service.list(req.user.organization_id);
-    res.status(200).json({ success: true, data });
+    const { page, limit, offset } = parsePagination(req.query);
+    const result = await service.list(req.user.organization_id, { limit, offset });
+    res.status(200).json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) {
     next(err);
   }
@@ -23,9 +25,6 @@ const getById = async (req, res, next) => {
 const createFromOrder = async (req, res, next) => {
   try {
     const { order_id } = req.body;
-    if (!order_id) {
-      return res.status(400).json({ success: false, message: 'order_id es requerido.' });
-    }
     const data = await service.createFromOrder(order_id, req.user.organization_id);
     res.status(201).json({ success: true, data });
   } catch (err) {

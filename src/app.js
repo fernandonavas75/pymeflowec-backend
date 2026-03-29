@@ -35,6 +35,23 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
+// Límites estrictos para endpoints sensibles de autenticación
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max:      10,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max:      5,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { success: false, message: 'Demasiadas solicitudes de recuperación. Intenta en 1 hora.' },
+});
+
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
@@ -69,7 +86,7 @@ app.get('/health', (req, res) => {
 });
 
 // ── RUTAS ─────────────────────────────────────────────────────
-app.use('/api/auth',          require('./routes/auth.routes'));
+app.use('/api/auth',          require('./routes/auth.routes')(loginLimiter, forgotPasswordLimiter));
 app.use('/api/organizations', require('./routes/organization.routes'));
 app.use('/api/users',         require('./routes/user.routes'));
 app.use('/api/clients',       require('./routes/client.routes'));

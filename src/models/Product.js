@@ -55,8 +55,10 @@ const Product = sequelize.define('Product', {
 }, {
   tableName:  'products',
   timestamps: true,
+  paranoid:   true,
   createdAt:  'created_at',
   updatedAt:  'updated_at',
+  deletedAt:  'deleted_at',
   hooks: {
     beforeCreate: (product) => {
       if (product.name)     product.name     = product.name.trim();

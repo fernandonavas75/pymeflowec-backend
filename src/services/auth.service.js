@@ -1,8 +1,8 @@
 'use strict';
 
 const bcrypt   = require('bcryptjs');
+const crypto   = require('crypto');
 const jwt      = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const { Op }   = require('sequelize');
 const { User, Role, Organization, AuditLog } = require('../models');
 const { sendPasswordResetEmail } = require('../utils/mailer');
@@ -19,7 +19,7 @@ const generateTokens = (user) => {
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
   });
 
-  const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, {
+  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh', {
     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   });
 
@@ -88,12 +88,14 @@ const forgotPassword = async (email) => {
   // Siempre responde igual para no revelar si el email existe
   if (!user || user.status !== 'active') return;
 
-  const token   = uuidv4().replace(/-/g, '');
-  const expires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+  // Generar token crudo (se envía por email) y guardar solo su hash en la BD
+  const rawToken    = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expires     = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
 
-  await user.update({ reset_token: token, reset_token_expires: expires });
+  await user.update({ reset_token: hashedToken, reset_token_expires: expires });
 
-  await sendPasswordResetEmail(user.email, user.full_name, token);
+  await sendPasswordResetEmail(user.email, user.full_name, rawToken);
 
   await AuditLog.create({
     organization_id: user.organization_id,
@@ -105,9 +107,12 @@ const forgotPassword = async (email) => {
 };
 
 const resetPassword = async (token, newPassword) => {
+  // Hashear el token recibido para compararlo con el almacenado en BD
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
   const user = await User.findOne({
     where: {
-      reset_token:         token,
+      reset_token:         hashedToken,
       reset_token_expires: { [Op.gt]: new Date() },
       status:              'active',
     },
@@ -132,4 +137,35 @@ const resetPassword = async (token, newPassword) => {
   });
 };
 
-module.exports = { login, me, forgotPassword, resetPassword };
+const refresh = async (token) => {
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh');
+  } catch {
+    throw new AppError('Refresh token inválido o expirado.', 401);
+  }
+
+  // Verificar que el usuario siga activo
+  const user = await User.findOne({
+    where: { id: payload.id, status: 'active' },
+    include: [
+      { model: Role,         as: 'role' },
+      { model: Organization, as: 'organization' },
+    ],
+  });
+
+  if (!user) throw new AppError('Usuario no encontrado o inactivo.', 401);
+  if (user.organization_id && user.organization.status !== 'active') {
+    throw new AppError('Organización inactiva.', 403);
+  }
+
+  const accessToken = jwt.sign(
+    { id: user.id, role: user.role.name, organization_id: user.organization_id },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+  );
+
+  return { accessToken };
+};
+
+module.exports = { login, me, forgotPassword, resetPassword, refresh };

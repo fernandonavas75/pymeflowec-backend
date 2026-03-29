@@ -1,11 +1,13 @@
 'use strict';
 
 const service = require('../services/supplier.service');
+const { parsePagination, paginatedResponse } = require('../utils/pagination');
 
 const list = async (req, res, next) => {
   try {
-    const data = await service.list(req.user.organization_id);
-    res.status(200).json({ success: true, data });
+    const { page, limit, offset } = parsePagination(req.query);
+    const result = await service.list(req.user.organization_id, { limit, offset });
+    res.status(200).json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) {
     next(err);
   }
@@ -56,4 +58,13 @@ const deactivate = async (req, res, next) => {
   }
 };
 
-module.exports = { list, getById, create, update, activate, deactivate };
+const remove = async (req, res, next) => {
+  try {
+    await service.remove(req.params.id, req.user.organization_id);
+    res.status(200).json({ success: true, message: 'Proveedor eliminado.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { list, getById, create, update, activate, deactivate, remove };

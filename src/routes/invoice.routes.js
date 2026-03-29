@@ -4,6 +4,8 @@ const router       = require('express').Router();
 const controller   = require('../controllers/invoice.controller');
 const authenticate = require('../middlewares/authenticate');
 const authorize    = require('../middlewares/authorize');
+const validate     = require('../middlewares/validate');
+const { createFromOrderRules, createManualRules } = require('../validators/invoice.validators');
 
 /**
  * @swagger
@@ -75,6 +77,7 @@ router.get('/:id',
 router.post('/from-order',
   authenticate,
   authorize('admin', 'manager', 'seller'),
+  validate(createFromOrderRules),
   controller.createFromOrder
 );
 
@@ -109,6 +112,7 @@ router.post('/from-order',
 router.post('/manual',
   authenticate,
   authorize('admin', 'manager'),
+  validate(createManualRules),
   controller.createManual
 );
 

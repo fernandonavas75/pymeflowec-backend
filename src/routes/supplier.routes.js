@@ -4,6 +4,8 @@ const router       = require('express').Router();
 const controller   = require('../controllers/supplier.controller');
 const authenticate = require('../middlewares/authenticate');
 const authorize    = require('../middlewares/authorize');
+const validate     = require('../middlewares/validate');
+const { createRules, updateRules } = require('../validators/supplier.validators');
 
 /**
  * @swagger
@@ -83,6 +85,7 @@ router.get('/:id',
 router.post('/',
   authenticate,
   authorize('admin', 'manager'),
+  validate(createRules),
   controller.create
 );
 
@@ -105,6 +108,7 @@ router.post('/',
 router.put('/:id',
   authenticate,
   authorize('admin', 'manager'),
+  validate(updateRules),
   controller.update
 );
 
@@ -150,6 +154,30 @@ router.patch('/:id/deactivate',
   authenticate,
   authorize('admin', 'manager'),
   controller.deactivate
+);
+
+/**
+ * @swagger
+ * /suppliers/{id}:
+ *   delete:
+ *     summary: Eliminar proveedor (soft delete)
+ *     tags: [Suppliers]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Proveedor eliminado
+ *       404:
+ *         description: No encontrado
+ */
+router.delete('/:id',
+  authenticate,
+  authorize('admin'),
+  controller.remove
 );
 
 module.exports = router;

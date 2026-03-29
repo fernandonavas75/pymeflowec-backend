@@ -3,10 +3,12 @@
 const { Client } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const list = async (organizationId) => {
-  return await Client.findAll({
+const list = async (organizationId, { limit, offset } = {}) => {
+  return await Client.findAndCountAll({
     where: { organization_id: organizationId },
     order: [['created_at', 'DESC']],
+    limit,
+    offset,
   });
 };
 
@@ -64,4 +66,10 @@ const setStatus = async (id, status, organizationId) => {
   return client;
 };
 
-module.exports = { list, getById, create, update, setStatus };
+const remove = async (id, organizationId) => {
+  const client = await Client.findOne({ where: { id, organization_id: organizationId } });
+  if (!client) throw new AppError('Cliente no encontrado.', 404);
+  await client.destroy();
+};
+
+module.exports = { list, getById, create, update, setStatus, remove };

@@ -51,8 +51,10 @@ const Supplier = sequelize.define('Supplier', {
 }, {
   tableName:  'suppliers',
   timestamps: true,
+  paranoid:   true,
   createdAt:  'created_at',
   updatedAt:  'updated_at',
+  deletedAt:  'deleted_at',
   hooks: {
     beforeCreate: (supplier) => {
       if (supplier.business_name) supplier.business_name = supplier.business_name.trim();

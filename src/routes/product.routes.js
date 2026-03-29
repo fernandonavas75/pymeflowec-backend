@@ -4,6 +4,8 @@ const router       = require('express').Router();
 const controller   = require('../controllers/product.controller');
 const authenticate = require('../middlewares/authenticate');
 const authorize    = require('../middlewares/authorize');
+const validate     = require('../middlewares/validate');
+const { createRules, updateRules, updateStockRules } = require('../validators/product.validators');
 
 /**
  * @swagger
@@ -83,6 +85,7 @@ router.get('/:id',
 router.post('/',
   authenticate,
   authorize('admin', 'manager'),
+  validate(createRules),
   controller.create
 );
 
@@ -105,6 +108,7 @@ router.post('/',
 router.put('/:id',
   authenticate,
   authorize('admin', 'manager'),
+  validate(updateRules),
   controller.update
 );
 
@@ -137,6 +141,7 @@ router.put('/:id',
 router.patch('/:id/stock',
   authenticate,
   authorize('admin', 'manager'),
+  validate(updateStockRules),
   controller.updateStock
 );
 
@@ -182,6 +187,30 @@ router.patch('/:id/deactivate',
   authenticate,
   authorize('admin', 'manager'),
   controller.deactivate
+);
+
+/**
+ * @swagger
+ * /products/{id}:
+ *   delete:
+ *     summary: Eliminar producto (soft delete)
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Producto eliminado
+ *       404:
+ *         description: No encontrado
+ */
+router.delete('/:id',
+  authenticate,
+  authorize('admin'),
+  controller.remove
 );
 
 module.exports = router;

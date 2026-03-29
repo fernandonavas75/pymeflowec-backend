@@ -54,8 +54,10 @@ const Client = sequelize.define('Client', {
 }, {
   tableName:  'clients',
   timestamps: true,
+  paranoid:   true,
   createdAt:  'created_at',
   updatedAt:  'updated_at',
+  deletedAt:  'deleted_at',
   hooks: {
     beforeCreate: (client) => {
       if (client.full_name)      client.full_name      = client.full_name.trim();

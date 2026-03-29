@@ -3,9 +3,11 @@
 const { Organization, User } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const list = async () => {
-  return await Organization.findAll({
+const list = async ({ limit, offset } = {}) => {
+  return await Organization.findAndCountAll({
     order: [['created_at', 'DESC']],
+    limit,
+    offset,
   });
 };
 
@@ -24,8 +26,8 @@ const create = async (data) => {
 const update = async (id, data) => {
   const org = await Organization.findByPk(id);
   if (!org) throw new AppError('Organización no encontrada.', 404);
-  const { name, email, phone, address } = data;
-  await org.update({ name, email, phone, address });
+  const { name, email, phone, address, tax_rate } = data;
+  await org.update({ name, email, phone, address, tax_rate });
   return org;
 };
 

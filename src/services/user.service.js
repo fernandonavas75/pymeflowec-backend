@@ -4,12 +4,14 @@ const bcrypt   = require('bcryptjs');
 const { User, Role, Organization } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const list = async (organizationId) => {
-  return await User.findAll({
+const list = async (organizationId, { limit, offset } = {}) => {
+  return await User.findAndCountAll({
     where: { organization_id: organizationId },
     include: [{ model: Role, as: 'role' }],
     attributes: { exclude: ['password_hash', 'reset_token', 'reset_token_expires'] },
     order: [['created_at', 'DESC']],
+    limit,
+    offset,
   });
 };
 

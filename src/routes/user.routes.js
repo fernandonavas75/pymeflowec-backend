@@ -4,6 +4,8 @@ const router       = require('express').Router();
 const controller   = require('../controllers/user.controller');
 const authenticate = require('../middlewares/authenticate');
 const authorize    = require('../middlewares/authorize');
+const validate     = require('../middlewares/validate');
+const { createRules, updateRules, changePasswordRules } = require('../validators/user.validators');
 
 /**
  * @swagger
@@ -81,6 +83,7 @@ router.get('/:id',
 router.post('/',
   authenticate,
   authorize('admin'),
+  validate(createRules),
   controller.create
 );
 
@@ -103,6 +106,7 @@ router.post('/',
 router.put('/:id',
   authenticate,
   authorize('admin'),
+  validate(updateRules),
   controller.update
 );
 
@@ -181,6 +185,7 @@ router.patch('/:id/deactivate',
 router.patch('/:id/change-password',
   authenticate,
   authorize('admin', 'manager', 'seller', 'viewer'),
+  validate(changePasswordRules),
   controller.changePassword
 );
 

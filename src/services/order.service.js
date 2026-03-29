@@ -1,21 +1,21 @@
 'use strict';
 
 const { sequelize } = require('../config/database');
-const { Order, OrderDetail, Product, Client, User } = require('../models');
+const { Order, OrderDetail, Product, Client, User, Organization } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const TAX_RATE = 0.12;
-
-const list = async (organizationId, userId, role) => {
+const list = async (organizationId, userId, role, { limit, offset } = {}) => {
   const where = { organization_id: organizationId };
   if (role === 'seller') where.user_id = userId;
-  return await Order.findAll({
+  return await Order.findAndCountAll({
     where,
     include: [
       { model: Client, as: 'client', attributes: ['id', 'full_name', 'identification'] },
       { model: User,   as: 'user',   attributes: ['id', 'full_name', 'email'] },
     ],
     order: [['created_at', 'DESC']],
+    limit,
+    offset,
   });
 };
 
@@ -43,8 +43,13 @@ const create = async (data, organizationId, userId) => {
 
   if (!items || items.length === 0) throw new AppError('La orden debe tener al menos un ítem.', 400);
 
-  const client = await Client.findOne({ where: { id: client_id, organization_id: organizationId } });
+  const [client, org] = await Promise.all([
+    Client.findOne({ where: { id: client_id, organization_id: organizationId } }),
+    Organization.findByPk(organizationId),
+  ]);
   if (!client) throw new AppError('Cliente no encontrado.', 404);
+
+  const taxRate = parseFloat(org.tax_rate);
 
   const orderId = await sequelize.transaction(async (t) => {
     let subtotal = 0;
@@ -72,7 +77,7 @@ const create = async (data, organizationId, userId) => {
       });
     }
 
-    const tax   = parseFloat((subtotal * TAX_RATE).toFixed(2));
+    const tax   = parseFloat((subtotal * taxRate).toFixed(2));
     const total = parseFloat((subtotal + tax).toFixed(2));
 
     const order = await Order.create({

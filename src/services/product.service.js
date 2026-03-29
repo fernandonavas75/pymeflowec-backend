@@ -3,10 +3,12 @@
 const { Product } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const list = async (organizationId) => {
-  return await Product.findAll({
+const list = async (organizationId, { limit, offset } = {}) => {
+  return await Product.findAndCountAll({
     where: { organization_id: organizationId },
     order: [['created_at', 'DESC']],
+    limit,
+    offset,
   });
 };
 
@@ -59,4 +61,10 @@ const setStatus = async (id, status, organizationId) => {
   return product;
 };
 
-module.exports = { list, getById, create, update, updateStock, setStatus };
+const remove = async (id, organizationId) => {
+  const product = await Product.findOne({ where: { id, organization_id: organizationId } });
+  if (!product) throw new AppError('Producto no encontrado.', 404);
+  await product.destroy();
+};
+
+module.exports = { list, getById, create, update, updateStock, setStatus, remove };
