@@ -61,7 +61,7 @@ const deactivate = async (req, res, next) => {
 const remove = async (req, res, next) => {
   try {
     await service.remove(req.params.id, req.user.organization_id);
-    res.status(200).json({ success: true, message: 'Proveedor eliminado.' });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
