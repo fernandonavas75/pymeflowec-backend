@@ -6,7 +6,7 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const data = await authService.login(email, password);
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, ...data });
   } catch (err) {
     next(err);
   }
@@ -48,7 +48,7 @@ const refresh = async (req, res, next) => {
   try {
     const { refresh_token } = req.body;
     const data = await authService.refresh(refresh_token);
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, ...data });
   } catch (err) {
     next(err);
   }

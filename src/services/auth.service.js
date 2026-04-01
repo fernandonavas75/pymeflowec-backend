@@ -15,15 +15,15 @@ const generateTokens = (user) => {
     organization_id: user.organization_id,
   };
 
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+  const access_token = jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
   });
 
-  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh', {
+  const refresh_token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh', {
     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   });
 
-  return { accessToken, refreshToken };
+  return { access_token, refresh_token };
 };
 
 const login = async (email, password) => {
@@ -58,11 +58,15 @@ const login = async (email, password) => {
 
   return {
     user: {
-      id:              user.id,
-      full_name:       user.full_name,
-      email:           user.email,
-      role:            user.role.name,
-      organization_id: user.organization_id,
+      id:           user.id,
+      full_name:    user.full_name,
+      email:        user.email,
+      role:         { name: user.role.name },
+      organization: {
+        id:       user.organization_id,
+        name:     user.organization?.name     ?? '',
+        tax_rate: user.organization?.tax_rate ?? 0,
+      },
     },
     ...tokens,
   };
@@ -165,7 +169,7 @@ const refresh = async (token) => {
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
 
-  return { accessToken };
+  return { access_token: accessToken };
 };
 
 module.exports = { login, me, forgotPassword, resetPassword, refresh };
