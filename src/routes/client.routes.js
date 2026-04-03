@@ -26,7 +26,7 @@ const { createRules, updateRules } = require('../validators/client.validators');
  */
 router.get('/',
   authenticate,
-  authorize('admin', 'manager', 'seller', 'viewer'),
+  authorize('clients.view'),
   controller.list
 );
 
@@ -50,7 +50,7 @@ router.get('/',
  */
 router.get('/:id',
   authenticate,
-  authorize('admin', 'manager', 'seller', 'viewer'),
+  authorize('clients.view'),
   controller.getById
 );
 
@@ -84,7 +84,7 @@ router.get('/:id',
  */
 router.post('/',
   authenticate,
-  authorize('admin', 'manager', 'seller'),
+  authorize('clients.create'),
   validate(createRules),
   controller.create
 );
@@ -107,7 +107,7 @@ router.post('/',
  */
 router.put('/:id',
   authenticate,
-  authorize('admin', 'manager', 'seller'),
+  authorize('clients.edit'),
   validate(updateRules),
   controller.update
 );
@@ -130,7 +130,7 @@ router.put('/:id',
  */
 router.patch('/:id/activate',
   authenticate,
-  authorize('admin', 'manager'),
+  authorize('clients.edit'),
   controller.activate
 );
 
@@ -152,7 +152,7 @@ router.patch('/:id/activate',
  */
 router.patch('/:id/deactivate',
   authenticate,
-  authorize('admin', 'manager'),
+  authorize('clients.edit'),
   controller.deactivate
 );
 
@@ -176,7 +176,7 @@ router.patch('/:id/deactivate',
  */
 router.delete('/:id',
   authenticate,
-  authorize('admin'),
+  authorize('clients.edit'),
   controller.remove
 );
 

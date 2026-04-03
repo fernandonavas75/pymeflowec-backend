@@ -68,4 +68,13 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { list, getById, create, update, activate, deactivate, changePassword };
+const remove = async (req, res, next) => {
+  try {
+    await service.remove(req.params.id, req.user.organization_id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { list, getById, create, update, activate, deactivate, changePassword, remove };

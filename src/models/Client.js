@@ -9,47 +9,42 @@ const Client = sequelize.define('Client', {
     autoIncrement: true,
     primaryKey:    true,
   },
-  organization_id: {
-    type:      DataTypes.INTEGER,
-    allowNull: false,
-  },
+  organization_id: { type: DataTypes.INTEGER, allowNull: false },
   full_name: {
     type:      DataTypes.STRING(255),
     allowNull: false,
-    validate: {
-      notEmpty: true,
-      len: [2, 255],
-    },
+    validate: { notEmpty: true, len: [2, 255] },
   },
   identification: {
     type:      DataTypes.STRING(20),
     allowNull: false,
-    validate: {
-      notEmpty: true,
-    },
+    validate: { notEmpty: true, len: [10, 20] },
   },
-  email: {
-    type:      DataTypes.STRING(255),
-    allowNull: true,
-    validate: {
-      isEmail: true,
-    },
+  identification_type: {
+    type:         DataTypes.STRING(20),
+    allowNull:    false,
+    defaultValue: 'cedula',
+    validate: { isIn: [['cedula', 'ruc', 'pasaporte']] },
   },
-  phone: {
-    type:      DataTypes.STRING(30),
-    allowNull: true,
+  client_type: {
+    type:         DataTypes.STRING(20),
+    allowNull:    false,
+    defaultValue: 'individual',
+    validate: { isIn: [['individual', 'business']] },
   },
-  address: {
-    type:      DataTypes.TEXT,
-    allowNull: true,
+  is_default: {
+    type:         DataTypes.BOOLEAN,
+    allowNull:    false,
+    defaultValue: false,
   },
+  email:   { type: DataTypes.STRING(255), allowNull: true, validate: { isEmail: true } },
+  phone:   { type: DataTypes.STRING(30),  allowNull: true },
+  address: { type: DataTypes.TEXT,        allowNull: true },
   status: {
     type:         DataTypes.STRING(20),
     allowNull:    false,
     defaultValue: 'active',
-    validate: {
-      isIn: [['active', 'inactive']],
-    },
+    validate: { isIn: [['active', 'inactive']] },
   },
 }, {
   tableName:  'clients',
@@ -59,15 +54,15 @@ const Client = sequelize.define('Client', {
   updatedAt:  'updated_at',
   deletedAt:  'deleted_at',
   hooks: {
-    beforeCreate: (client) => {
-      if (client.full_name)      client.full_name      = client.full_name.trim();
-      if (client.identification) client.identification = client.identification.trim();
-      if (client.email)          client.email          = client.email.toLowerCase().trim();
+    beforeCreate: (c) => {
+      if (c.full_name)      c.full_name      = c.full_name.trim();
+      if (c.identification) c.identification = c.identification.trim();
+      if (c.email)          c.email          = c.email.toLowerCase().trim();
     },
-    beforeUpdate: (client) => {
-      if (client.changed('full_name'))      client.full_name      = client.full_name.trim();
-      if (client.changed('identification')) client.identification = client.identification.trim();
-      if (client.changed('email'))          client.email          = client.email.toLowerCase().trim();
+    beforeUpdate: (c) => {
+      if (c.changed('full_name'))      c.full_name      = c.full_name.trim();
+      if (c.changed('identification')) c.identification = c.identification.trim();
+      if (c.changed('email'))          c.email          = c.email.toLowerCase().trim();
     },
   },
 });

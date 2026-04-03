@@ -9,22 +9,26 @@ const Role = sequelize.define('Role', {
     autoIncrement: true,
     primaryKey:    true,
   },
+  organization_id: {
+    type:      DataTypes.INTEGER,
+    allowNull: false,
+  },
   name: {
     type:      DataTypes.STRING(100),
     allowNull: false,
-    unique:    true,
-    validate: {
-      notEmpty: true,
-      isIn: [['superadmin', 'admin', 'manager', 'seller', 'viewer']],
-    },
+    validate: { notEmpty: true },
   },
-  description: {
-    type:      DataTypes.TEXT,
-    allowNull: true,
+  description: { type: DataTypes.TEXT, allowNull: true },
+  is_system: {
+    type:         DataTypes.BOOLEAN,
+    allowNull:    false,
+    defaultValue: false,
   },
 }, {
   tableName:  'roles',
-  timestamps: false,
+  timestamps: true,
+  createdAt:  'created_at',
+  updatedAt:  'updated_at',
 });
 
 module.exports = Role;
