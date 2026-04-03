@@ -25,7 +25,7 @@ const getById = async (req, res, next) => {
 const createFromOrder = async (req, res, next) => {
   try {
     const { order_id } = req.body;
-    const data = await service.createFromOrder(order_id, req.user.organization_id);
+    const data = await service.createFromOrder(order_id, req.user.organization_id, req.user.id);
     res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);
@@ -34,7 +34,7 @@ const createFromOrder = async (req, res, next) => {
 
 const createManual = async (req, res, next) => {
   try {
-    const data = await service.createManual(req.body, req.user.organization_id);
+    const data = await service.createManual(req.body, req.user.organization_id, req.user.id);
     res.status(201).json({ success: true, data });
   } catch (err) {
     next(err);

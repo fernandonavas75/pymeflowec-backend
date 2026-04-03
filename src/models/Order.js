@@ -9,18 +9,9 @@ const Order = sequelize.define('Order', {
     autoIncrement: true,
     primaryKey:    true,
   },
-  organization_id: {
-    type:      DataTypes.INTEGER,
-    allowNull: false,
-  },
-  client_id: {
-    type:      DataTypes.INTEGER,
-    allowNull: false,
-  },
-  user_id: {
-    type:      DataTypes.INTEGER,
-    allowNull: false,
-  },
+  organization_id: { type: DataTypes.INTEGER, allowNull: false },
+  client_id:       { type: DataTypes.INTEGER, allowNull: true },  // NULL = Consumidor Final
+  user_id:         { type: DataTypes.INTEGER, allowNull: false },
   order_date: {
     type:         DataTypes.DATEONLY,
     allowNull:    false,
@@ -30,25 +21,12 @@ const Order = sequelize.define('Order', {
     type:         DataTypes.STRING(30),
     allowNull:    false,
     defaultValue: 'pending',
-    validate: {
-      isIn: [['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']],
-    },
+    validate: { isIn: [['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']] },
   },
-  subtotal: {
-    type:         DataTypes.DECIMAL(14, 2),
-    allowNull:    false,
-    defaultValue: 0,
-  },
-  tax: {
-    type:         DataTypes.DECIMAL(14, 2),
-    allowNull:    false,
-    defaultValue: 0,
-  },
-  total: {
-    type:         DataTypes.DECIMAL(14, 2),
-    allowNull:    false,
-    defaultValue: 0,
-  },
+  subtotal: { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
+  tax:      { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
+  total:    { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
+  notes:    { type: DataTypes.TEXT,           allowNull: true },
 }, {
   tableName:  'orders',
   timestamps: true,

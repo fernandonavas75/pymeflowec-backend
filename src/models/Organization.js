@@ -12,52 +12,52 @@ const Organization = sequelize.define('Organization', {
   name: {
     type:      DataTypes.STRING(255),
     allowNull: false,
-    validate: {
-      notEmpty: true,
-      len: [2, 255],
-    },
+    validate: { notEmpty: true, len: [2, 255] },
   },
   ruc: {
     type:      DataTypes.STRING(20),
     allowNull: false,
     unique:    true,
-    validate: {
-      notEmpty: true,
-      len: [10, 20],
-    },
+    validate: { notEmpty: true, len: [10, 20] },
   },
-  email: {
-    type:      DataTypes.STRING(255),
-    allowNull: true,
-    validate: {
-      isEmail: true,
-    },
-  },
-  phone: {
-    type:      DataTypes.STRING(30),
-    allowNull: true,
-  },
-  address: {
-    type:      DataTypes.TEXT,
-    allowNull: true,
-  },
+  email:    { type: DataTypes.STRING(255), allowNull: true, validate: { isEmail: true } },
+  phone:    { type: DataTypes.STRING(30),  allowNull: true },
+  address:  { type: DataTypes.TEXT,        allowNull: true },
+  city:     { type: DataTypes.STRING(100), allowNull: true },
+  province: { type: DataTypes.STRING(100), allowNull: true },
+  logo_url: { type: DataTypes.STRING(500), allowNull: true },
   status: {
     type:         DataTypes.STRING(20),
     allowNull:    false,
     defaultValue: 'active',
-    validate: {
-      isIn: [['active', 'inactive']],
-    },
+    validate: { isIn: [['active', 'inactive']] },
   },
-  tax_rate: {
-    type:         DataTypes.DECIMAL(5, 4),
+  default_tax_id: { type: DataTypes.INTEGER, allowNull: true },
+  currency: {
+    type:         DataTypes.STRING(3),
     allowNull:    false,
-    defaultValue: 0.12,
-    validate: {
-      min: 0,
-      max: 1,
-    },
+    defaultValue: 'USD',
   },
+  // SRI - Facturación electrónica
+  sri_ambiente: {
+    type:         DataTypes.STRING(1),
+    allowNull:    false,
+    defaultValue: '1',
+    validate: { isIn: [['1', '2']] },
+  },
+  sri_tipo_emision: {
+    type:         DataTypes.STRING(1),
+    allowNull:    false,
+    defaultValue: '1',
+    validate: { isIn: [['1', '2']] },
+  },
+  sri_obligado_contab:        { type: DataTypes.BOOLEAN,     allowNull: false, defaultValue: false },
+  sri_contribuyente_especial: { type: DataTypes.STRING(20),  allowNull: true },
+  sri_firma_path:             { type: DataTypes.STRING(500), allowNull: true },
+  sri_secuencial_factura:     { type: DataTypes.INTEGER,     allowNull: false, defaultValue: 0 },
+  sri_secuencial_nc:          { type: DataTypes.INTEGER,     allowNull: false, defaultValue: 0 },
+  sri_establecimiento:        { type: DataTypes.STRING(3),   allowNull: false, defaultValue: '001' },
+  sri_punto_emision:          { type: DataTypes.STRING(3),   allowNull: false, defaultValue: '001' },
 }, {
   tableName:  'organizations',
   timestamps: true,

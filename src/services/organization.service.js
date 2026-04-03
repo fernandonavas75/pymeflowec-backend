@@ -1,6 +1,7 @@
 'use strict';
 
-const { Organization, User } = require('../models');
+const { sequelize } = require('../config/database');
+const { Organization } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
 const list = async ({ limit, offset } = {}) => {
@@ -17,17 +18,43 @@ const getById = async (id) => {
   return org;
 };
 
+/**
+ * Creates an organization and runs the DB onboarding functions inside a
+ * single transaction: create_default_roles, create_default_client,
+ * create_default_expense_categories.
+ */
 const create = async (data) => {
-  const { name, ruc, email, phone, address } = data;
-  const org = await Organization.create({ name, ruc, email, phone, address });
-  return org;
+  const { name, ruc, email, phone, address, city, province } = data;
+
+  return await sequelize.transaction(async (t) => {
+    const org = await Organization.create(
+      { name, ruc, email, phone, address, city, province },
+      { transaction: t }
+    );
+
+    await sequelize.query('SELECT create_default_roles(:orgId)',    { replacements: { orgId: org.id }, transaction: t });
+    await sequelize.query('SELECT create_default_client(:orgId)',   { replacements: { orgId: org.id }, transaction: t });
+    await sequelize.query('SELECT create_default_expense_categories(:orgId)', { replacements: { orgId: org.id }, transaction: t });
+
+    return org;
+  });
 };
 
 const update = async (id, data) => {
   const org = await Organization.findByPk(id);
   if (!org) throw new AppError('Organización no encontrada.', 404);
-  const { name, email, phone, address, tax_rate } = data;
-  await org.update({ name, email, phone, address, tax_rate });
+
+  const allowed = [
+    'name', 'email', 'phone', 'address', 'city', 'province', 'logo_url',
+    'default_tax_id', 'currency',
+    'sri_ambiente', 'sri_tipo_emision', 'sri_obligado_contab',
+    'sri_contribuyente_especial', 'sri_firma_path',
+    'sri_establecimiento', 'sri_punto_emision',
+  ];
+  const updates = Object.fromEntries(
+    Object.entries(data).filter(([k]) => allowed.includes(k))
+  );
+  await org.update(updates);
   return org;
 };
 
