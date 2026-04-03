@@ -10,7 +10,7 @@ const { createRules, updateRules } = require('../validators/client.validators');
 /**
  * @swagger
  * tags:
- *   name: Clients
+ *   name: Clientes
  *   description: Gestión de clientes de la organización
  */
 
@@ -19,7 +19,7 @@ const { createRules, updateRules } = require('../validators/client.validators');
  * /clients:
  *   get:
  *     summary: Listar clientes
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     responses:
  *       200:
  *         description: Lista de clientes
@@ -35,7 +35,7 @@ router.get('/',
  * /clients/{id}:
  *   get:
  *     summary: Obtener cliente por ID
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     parameters:
  *       - in: path
  *         name: id
@@ -59,7 +59,7 @@ router.get('/:id',
  * /clients:
  *   post:
  *     summary: Crear cliente
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     requestBody:
  *       required: true
  *       content:
@@ -94,7 +94,7 @@ router.post('/',
  * /clients/{id}:
  *   put:
  *     summary: Actualizar cliente
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     parameters:
  *       - in: path
  *         name: id
@@ -117,7 +117,7 @@ router.put('/:id',
  * /clients/{id}/activate:
  *   patch:
  *     summary: Activar cliente
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     parameters:
  *       - in: path
  *         name: id
@@ -139,7 +139,7 @@ router.patch('/:id/activate',
  * /clients/{id}/deactivate:
  *   patch:
  *     summary: Desactivar cliente
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     parameters:
  *       - in: path
  *         name: id
@@ -161,7 +161,7 @@ router.patch('/:id/deactivate',
  * /clients/{id}:
  *   delete:
  *     summary: Eliminar cliente (soft delete)
- *     tags: [Clients]
+ *     tags: [Clientes]
  *     parameters:
  *       - in: path
  *         name: id

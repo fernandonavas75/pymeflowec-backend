@@ -10,7 +10,7 @@ const { createRules, updateRules } = require('../validators/organization.validat
 /**
  * @swagger
  * tags:
- *   name: Organizations
+ *   name: Organizaciones
  *   description: Gestión de organizaciones (solo superadmin)
  */
 
