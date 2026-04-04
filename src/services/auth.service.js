@@ -4,7 +4,7 @@ const bcrypt   = require('bcryptjs');
 const crypto   = require('crypto');
 const jwt      = require('jsonwebtoken');
 const { Op }   = require('sequelize');
-const { User, Role, Permission, Organization, AuditLog } = require('../models');
+const { User, Role, Permission, Organization, AuditLog, PlatformStaff, PlatformRole } = require('../models');
 const { sendPasswordResetEmail } = require('../utils/mailer');
 const { AppError } = require('../middlewares/errorHandler');
 
@@ -35,6 +35,13 @@ const loadUser = (where) =>
         include: [{ model: Permission, as: 'permissions', attributes: ['code'] }],
       },
       { model: Organization, as: 'organization' },
+      {
+        model:    PlatformStaff,
+        as:       'platformStaff',
+        required: false,
+        where:    { is_active: true },
+        include:  [{ model: PlatformRole, as: 'platformRole' }],
+      },
     ],
   });
 
@@ -75,6 +82,14 @@ const login = async (email, password, ipAddress, userAgent) => {
         id:   user.organization_id,
         name: user.organization?.name ?? '',
       },
+      platform_staff: user.platformStaff
+        ? {
+            id:        user.platformStaff.id,
+            can_read:  user.platformStaff.platformRole?.can_read  ?? false,
+            can_write: user.platformStaff.platformRole?.can_write ?? false,
+            role:      user.platformStaff.platformRole?.code ?? null,
+          }
+        : null,
     },
     ...tokens,
   };
@@ -90,6 +105,13 @@ const me = async (userId) => {
         include: [{ model: Permission, as: 'permissions', attributes: ['code', 'module'] }],
       },
       { model: Organization, as: 'organization' },
+      {
+        model:    PlatformStaff,
+        as:       'platformStaff',
+        required: false,
+        where:    { is_active: true },
+        include:  [{ model: PlatformRole, as: 'platformRole' }],
+      },
     ],
     attributes: { exclude: ['password_hash', 'reset_token', 'reset_token_expires'] },
   });

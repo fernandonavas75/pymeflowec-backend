@@ -102,6 +102,9 @@ app.use('/api/credit-notes',    require('./routes/creditNote.routes'));
 app.use('/api/purchase-orders', require('./routes/purchaseOrder.routes'));
 app.use('/api/cash-registers',  require('./routes/cashRegister.routes'));
 app.use('/api/expenses',        require('./routes/expense.routes'));
+app.use('/api/platform/modules', require('./routes/platformModule.routes'));
+app.use('/api/platform/staff',   require('./routes/platformStaff.routes'));
+app.use('/api/module-requests',  require('./routes/moduleRequest.routes'));
 
 // ── 404 ───────────────────────────────────────────────────────
 app.use((req, res) => {

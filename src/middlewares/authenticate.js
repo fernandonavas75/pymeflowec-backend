@@ -2,7 +2,7 @@
 
 const jwt            = require('jsonwebtoken');
 const { sequelize }  = require('../config/database');
-const { User, Role, Permission, Organization } = require('../models');
+const { User, Role, Permission, Organization, PlatformStaff, PlatformRole } = require('../models');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -23,6 +23,13 @@ const authenticate = async (req, res, next) => {
           include: [{ model: Permission, as: 'permissions', attributes: ['code'] }],
         },
         { model: Organization, as: 'organization' },
+        {
+          model: PlatformStaff,
+          as:    'platformStaff',
+          required: false,
+          where: { is_active: true },
+          include: [{ model: PlatformRole, as: 'platformRole' }],
+        },
       ],
     });
 
@@ -34,15 +41,14 @@ const authenticate = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Organización inactiva.' });
     }
 
-    // Attach flat permission code list for authorize middleware
+    // Flat permission code list for authorize middleware
     user.permissionCodes = user.role?.permissions?.map(p => p.code) ?? [];
 
-    // Set RLS session variable (requires non-privileged DB user for enforcement)
-    if (user.organization_id) {
-      await sequelize.query(
-        `SET LOCAL app.current_org_id = '${user.organization_id}'`
-      );
-    }
+    // Set RLS session variables
+    const orgId  = user.organization_id ?? 0;
+    const userId = user.id;
+    await sequelize.query(`SET LOCAL app.current_org_id  = '${orgId}'`);
+    await sequelize.query(`SET LOCAL app.current_user_id = '${userId}'`);
 
     req.user = user;
     next();

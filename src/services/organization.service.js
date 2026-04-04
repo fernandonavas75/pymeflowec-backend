@@ -32,9 +32,7 @@ const create = async (data) => {
       { transaction: t }
     );
 
-    await sequelize.query('SELECT create_default_roles(:orgId)',    { replacements: { orgId: org.id }, transaction: t });
-    await sequelize.query('SELECT create_default_client(:orgId)',   { replacements: { orgId: org.id }, transaction: t });
-    await sequelize.query('SELECT create_default_expense_categories(:orgId)', { replacements: { orgId: org.id }, transaction: t });
+    await sequelize.query('SELECT onboard_organization(:orgId, NULL)', { replacements: { orgId: org.id }, transaction: t });
 
     return org;
   });

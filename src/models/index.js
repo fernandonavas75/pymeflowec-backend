@@ -26,6 +26,12 @@ const CashRegisterMovement = require('./CashRegisterMovement');
 const ExpenseCategory    = require('./ExpenseCategory');
 const Expense            = require('./Expense');
 const AuditLog           = require('./AuditLog');
+const PlatformModule     = require('./PlatformModule');
+const PlatformRole       = require('./PlatformRole');
+const PlatformStaff      = require('./PlatformStaff');
+const ModuleRequest      = require('./ModuleRequest');
+const OrganizationModule = require('./OrganizationModule');
+const PlatformAuditLog   = require('./PlatformAuditLog');
 
 // ── TaxRate ────────────────────────────────────────────────────
 Organization.belongsTo(TaxRate, { foreignKey: 'default_tax_id', as: 'defaultTax' });
@@ -172,6 +178,45 @@ Expense.belongsTo(Supplier,          { foreignKey: 'supplier_id',   as: 'supplie
 User.hasMany(AuditLog,   { foreignKey: 'user_id', as: 'auditLogs' });
 AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// ── PlatformRole ↔ PlatformStaff ──────────────────────────────
+PlatformRole.hasMany(PlatformStaff, { foreignKey: 'platform_role_id', as: 'staff' });
+PlatformStaff.belongsTo(PlatformRole, { foreignKey: 'platform_role_id', as: 'platformRole' });
+
+// ── User ↔ PlatformStaff (1:1) ────────────────────────────────
+User.hasOne(PlatformStaff,    { foreignKey: 'user_id', as: 'platformStaff' });
+PlatformStaff.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// ── PlatformModule ↔ OrganizationModule / ModuleRequest ───────
+PlatformModule.hasMany(OrganizationModule, { foreignKey: 'module_id', as: 'organizationModules' });
+OrganizationModule.belongsTo(PlatformModule, { foreignKey: 'module_id', as: 'module' });
+
+PlatformModule.hasMany(ModuleRequest, { foreignKey: 'module_id', as: 'requests' });
+ModuleRequest.belongsTo(PlatformModule, { foreignKey: 'module_id', as: 'module' });
+
+// ── Organization ↔ OrganizationModule / ModuleRequest ─────────
+Organization.hasMany(OrganizationModule, { foreignKey: 'organization_id', as: 'organizationModules' });
+OrganizationModule.belongsTo(Organization, { foreignKey: 'organization_id', as: 'organization' });
+
+Organization.hasMany(ModuleRequest, { foreignKey: 'organization_id', as: 'moduleRequests' });
+ModuleRequest.belongsTo(Organization, { foreignKey: 'organization_id', as: 'organization' });
+
+// ── User ↔ ModuleRequest (requester / reviewer) ───────────────
+User.hasMany(ModuleRequest, { foreignKey: 'requested_by', as: 'requestedModules' });
+ModuleRequest.belongsTo(User, { foreignKey: 'requested_by', as: 'requester' });
+ModuleRequest.belongsTo(User, { foreignKey: 'reviewed_by',  as: 'reviewer' });
+
+// ── ModuleRequest ↔ OrganizationModule ────────────────────────
+ModuleRequest.hasOne(OrganizationModule, { foreignKey: 'request_id', as: 'organizationModule' });
+OrganizationModule.belongsTo(ModuleRequest, { foreignKey: 'request_id', as: 'request' });
+
+// ── PlatformAuditLog ──────────────────────────────────────────
+PlatformStaff.hasMany(PlatformAuditLog, { foreignKey: 'staff_id', as: 'auditLogs' });
+PlatformAuditLog.belongsTo(PlatformStaff, { foreignKey: 'staff_id', as: 'staff' });
+User.hasMany(PlatformAuditLog,  { foreignKey: 'user_id', as: 'platformAuditLogs' });
+PlatformAuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+Organization.hasMany(PlatformAuditLog, { foreignKey: 'target_org_id', as: 'platformAuditLogs' });
+PlatformAuditLog.belongsTo(Organization, { foreignKey: 'target_org_id', as: 'targetOrg' });
+
 module.exports = {
   Organization, TaxRate, Permission, Role, User,
   Client, Supplier, Category, Product, SupplierProduct, PriceHistory,
@@ -181,4 +226,6 @@ module.exports = {
   Payment, CashRegister, CashRegisterMovement,
   ExpenseCategory, Expense,
   AuditLog,
+  PlatformModule, PlatformRole, PlatformStaff,
+  ModuleRequest, OrganizationModule, PlatformAuditLog,
 };
