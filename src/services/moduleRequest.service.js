@@ -6,7 +6,6 @@ const {
   OrganizationModule, PlatformAuditLog, PlatformStaff, PlatformRole,
 } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
-const { paginate }  = require('../utils/pagination');
 
 const list = async ({ organizationId, status, limit, offset }) => {
   const where = { organization_id: organizationId };

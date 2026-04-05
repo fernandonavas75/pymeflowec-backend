@@ -1,27 +1,27 @@
 'use strict';
 
 const svc        = require('../services/moduleRequest.service');
-const { paginate } = require('../utils/pagination');
+const { parsePagination, paginatedResponse } = require('../utils/pagination');
 
 const list = async (req, res, next) => {
   try {
-    const { limit, offset } = paginate(req.query);
-    const { status }        = req.query;
-    const organizationId    = req.user.organization_id;
+    const { page, limit, offset } = parsePagination(req.query);
+    const { status }              = req.query;
+    const organizationId          = req.user.organization_id;
 
     const result = await svc.list({ organizationId, status, limit, offset });
-    res.json({ success: true, ...result });
+    res.json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) { next(err); }
 };
 
 // Platform admin only
 const listAll = async (req, res, next) => {
   try {
-    const { limit, offset } = paginate(req.query);
-    const { status }        = req.query;
+    const { page, limit, offset } = parsePagination(req.query);
+    const { status }              = req.query;
 
     const result = await svc.listAll({ status, limit, offset });
-    res.json({ success: true, ...result });
+    res.json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) { next(err); }
 };
 

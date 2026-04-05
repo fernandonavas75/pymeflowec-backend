@@ -3,6 +3,7 @@
 const Organization       = require('./Organization');
 const TaxRate            = require('./TaxRate');
 const Permission         = require('./Permission');
+const RolePermission     = require('./RolePermission');
 const Role               = require('./Role');
 const User               = require('./User');
 const Client             = require('./Client');
@@ -40,8 +41,8 @@ TaxRate.hasMany(Product,        { foreignKey: 'tax_rate_id',    as: 'products' }
 Product.belongsTo(TaxRate,      { foreignKey: 'tax_rate_id',    as: 'taxRate' });
 
 // ── RBAC: Role ↔ Permission (many-to-many) ─────────────────────
-Role.belongsToMany(Permission, { through: 'role_permissions', foreignKey: 'role_id',      otherKey: 'permission_id', as: 'permissions' });
-Permission.belongsToMany(Role, { through: 'role_permissions', foreignKey: 'permission_id', otherKey: 'role_id',       as: 'roles' });
+Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'role_id',      otherKey: 'permission_id', as: 'permissions' });
+Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permission_id', otherKey: 'role_id',       as: 'roles' });
 
 // ── Organization → Roles/Users ─────────────────────────────────
 Organization.hasMany(Role, { foreignKey: 'organization_id', as: 'roles' });

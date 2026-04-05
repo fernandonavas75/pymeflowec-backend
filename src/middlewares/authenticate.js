@@ -14,6 +14,11 @@ const authenticate = async (req, res, next) => {
     const token   = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // Establezca las variables de sesión RLS a partir de la carga útil JWT ANTES de consultar la base de datos,
+    // para que User.findOne se ejecute con el contexto de inquilino/usuario correcto.
+    await sequelize.query(`SET LOCAL app.current_org_id  = '${decoded.organization_id ?? 0}'`);
+    await sequelize.query(`SET LOCAL app.current_user_id = '${decoded.id}'`);
+
     const user = await User.findOne({
       where: { id: decoded.id, status: 'active' },
       include: [
