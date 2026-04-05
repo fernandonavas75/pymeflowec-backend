@@ -3,7 +3,7 @@
 const controller   = require('../controllers/auth.controller');
 const authenticate = require('../middlewares/authenticate');
 const validate     = require('../middlewares/validate');
-const { loginRules, forgotPasswordRules, resetPasswordRules, refreshRules } = require('../validators/auth.validators');
+const { loginRules, forgotPasswordRules, resetPasswordRules, refreshRules, registerRules } = require('../validators/auth.validators');
 
 /**
  * @swagger
@@ -41,6 +41,37 @@ module.exports = (loginLimiter, forgotPasswordLimiter) => {
    *         description: Credenciales inválidas
    */
   router.post('/login', loginLimiter, validate(loginRules), controller.login);
+
+  /**
+   * @swagger
+   * /auth/register:
+   *   post:
+   *     summary: Registrar nueva organización y administrador
+   *     tags: [Auth]
+   *     security: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [org_name, org_ruc, full_name, email, password]
+   *             properties:
+   *               org_name:  { type: string }
+   *               org_ruc:   { type: string }
+   *               org_email: { type: string }
+   *               org_phone: { type: string }
+   *               org_city:  { type: string }
+   *               full_name: { type: string }
+   *               email:     { type: string }
+   *               password:  { type: string }
+   *     responses:
+   *       201:
+   *         description: Organización y administrador creados, retorna tokens
+   *       409:
+   *         description: Email o RUC ya registrado
+   */
+  router.post('/register', validate(registerRules), controller.register);
 
   /**
    * @swagger

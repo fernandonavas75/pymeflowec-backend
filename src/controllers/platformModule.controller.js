@@ -24,4 +24,11 @@ const getById = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { listAll, listActive, getById };
+const listPublic = async (req, res, next) => {
+  try {
+    const modules = await svc.listPublic();
+    res.json({ success: true, data: modules });
+  } catch (err) { next(err); }
+};
+
+module.exports = { listAll, listActive, getById, listPublic };

@@ -24,6 +24,19 @@ const { requirePlatformStaff } = require('../middlewares/platformAuth');
  *       200:
  *         description: Lista de módulos
  */
+/**
+ * @swagger
+ * /platform/modules/public:
+ *   get:
+ *     summary: Listar módulos disponibles (público, sin autenticación)
+ *     tags: [Plataforma - Módulos]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Lista de módulos activos
+ */
+router.get('/public', controller.listPublic);
+
 router.get('/',
   authenticate,
   requirePlatformStaff,

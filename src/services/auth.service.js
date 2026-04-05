@@ -4,6 +4,7 @@ const bcrypt   = require('bcryptjs');
 const crypto   = require('crypto');
 const jwt      = require('jsonwebtoken');
 const { Op }   = require('sequelize');
+const { sequelize } = require('../config/database');
 const { User, Role, Permission, Organization, AuditLog, PlatformStaff, PlatformRole } = require('../models');
 const { sendPasswordResetEmail } = require('../utils/mailer');
 const { AppError } = require('../middlewares/errorHandler');
@@ -186,4 +187,76 @@ const refresh = async (token) => {
   return { access_token };
 };
 
-module.exports = { login, me, forgotPassword, resetPassword, refresh };
+const register = async (data, ipAddress, userAgent) => {
+  const { org_name, org_ruc, org_email, org_phone, org_city, full_name, email, password } = data;
+
+  const existingUser = await User.findOne({ where: { email: email.toLowerCase().trim() } });
+  if (existingUser) throw new AppError('El correo electrónico ya está registrado.', 409);
+
+  const existingOrg = await Organization.findOne({ where: { ruc: org_ruc.trim() } });
+  if (existingOrg) throw new AppError('Ya existe una organización con ese RUC.', 409);
+
+  const org = await sequelize.transaction(async (t) => {
+    const newOrg = await Organization.create(
+      { name: org_name, ruc: org_ruc, email: org_email || null, phone: org_phone || null, city: org_city || null },
+      { transaction: t }
+    );
+    await sequelize.query('SELECT onboard_organization(:orgId, NULL)', {
+      replacements: { orgId: newOrg.id },
+      transaction: t,
+    });
+    return newOrg;
+  });
+
+  const adminRole = await Role.findOne({
+    where: { organization_id: org.id, is_system: true },
+    order: [['id', 'ASC']],
+  }) || await Role.findOne({
+    where: { organization_id: org.id },
+    order: [['id', 'ASC']],
+  });
+
+  if (!adminRole) throw new AppError('Error al configurar la organización.', 500);
+
+  const password_hash = await bcrypt.hash(password, 12);
+
+  const newUser = await User.create({
+    organization_id: org.id,
+    role_id: adminRole.id,
+    full_name,
+    email,
+    password_hash,
+    status: 'active',
+  });
+
+  const fullUser = await loadUser({ id: newUser.id });
+  if (!fullUser) throw new AppError('Error al crear el usuario.', 500);
+
+  const tokens = generateTokens(fullUser);
+  const permissions = fullUser.role?.permissions?.map(p => p.code) ?? [];
+
+  await AuditLog.create({
+    organization_id: org.id,
+    user_id: newUser.id,
+    action: 'REGISTER',
+    module: 'auth',
+    description: `Nueva organización registrada: ${org_name}. Administrador: ${full_name}.`,
+    ip_address: ipAddress || null,
+    user_agent: userAgent || null,
+  });
+
+  return {
+    user: {
+      id:           fullUser.id,
+      full_name:    fullUser.full_name,
+      email:        fullUser.email,
+      role:         { id: fullUser.role?.id, name: fullUser.role?.name },
+      permissions,
+      organization: { id: org.id, name: org.name },
+      platform_staff: null,
+    },
+    ...tokens,
+  };
+};
+
+module.exports = { login, me, forgotPassword, resetPassword, refresh, register };

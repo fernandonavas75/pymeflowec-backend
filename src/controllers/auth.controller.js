@@ -54,4 +54,13 @@ const refresh = async (req, res, next) => {
   }
 };
 
-module.exports = { login, me, forgotPassword, resetPassword, refresh };
+const register = async (req, res, next) => {
+  try {
+    const data = await authService.register(req.body, req.ip, req.headers['user-agent']);
+    res.status(201).json({ success: true, ...data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { login, me, forgotPassword, resetPassword, refresh, register };

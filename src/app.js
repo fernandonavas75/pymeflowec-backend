@@ -6,7 +6,7 @@ const cors         = require('cors');
 const helmet       = require('helmet');
 const morgan       = require('morgan');
 const compression  = require('compression');
-const rateLimit    = require('express-rate-limit');
+ const rateLimit    = require('express-rate-limit'); // TEMPORALMENTE DESACTIVADO
 const swaggerUi    = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
@@ -26,31 +26,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-const globalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-  max:      parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  message: { success: false, message: 'Demasiadas solicitudes. Intenta en 15 minutos.' },
-});
-app.use('/api', globalLimiter);
+// RATE LIMITERS TEMPORALMENTE DESACTIVADOS
+ const globalLimiter = rateLimit({
+   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+   max:      parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+   standardHeaders: true,
+   legacyHeaders:   false,
+   message: { success: false, message: 'Demasiadas solicitudes. Intenta en 15 minutos.' },
+ });
+ app.use('/api', globalLimiter);
 
-// Límites estrictos para endpoints sensibles de autenticación
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max:      10,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
-});
+// // Límites estrictos para endpoints sensibles de autenticación
+ const loginLimiter = rateLimit({
+   windowMs: 15 * 60 * 1000, // 15 minutos
+   max:      10,
+   standardHeaders: true,
+   legacyHeaders:   false,
+   message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
+ });
 
-const forgotPasswordLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
-  max:      5,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  message: { success: false, message: 'Demasiadas solicitudes de recuperación. Intenta en 1 hora.' },
-});
+ const forgotPasswordLimiter = rateLimit({
+   windowMs: 60 * 60 * 1000, // 1 hora
+   max:      5,
+   standardHeaders: true,
+   legacyHeaders:   false,
+   message: { success: false, message: 'Demasiadas solicitudes de recuperación. Intenta en 1 hora.' },
+ });
+
+ // fin de limiters
+const noopLimiter = (req, res, next) => next(); //limiter que no hace nada, para desarrollo y pruebas sin restricciones
 
 const swaggerSpec = swaggerJsdoc({
   definition: {
@@ -86,7 +90,7 @@ app.get('/health', (req, res) => {
 });
 
 // ── RUTAS ─────────────────────────────────────────────────────
-app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter, forgotPasswordLimiter));
+app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter, forgotPasswordLimiter, globalLimiter)); //loginLimiter,forgotPasswordLimiter,globalLimiter -- dev noopLimiter, noopLimiter
 app.use('/api/organizations',   require('./routes/organization.routes'));
 app.use('/api/users',           require('./routes/user.routes'));
 app.use('/api/clients',         require('./routes/client.routes'));

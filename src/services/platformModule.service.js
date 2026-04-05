@@ -23,4 +23,12 @@ const getById = async (id) => {
   return mod;
 };
 
-module.exports = { listAll, listActive, getById };
+const listPublic = async () => {
+  return PlatformModule.findAll({
+    where: { is_active: true },
+    attributes: ['id', 'code', 'name', 'description', 'icon', 'is_default', 'sort_order'],
+    order: [['sort_order', 'ASC']],
+  });
+};
+
+module.exports = { listAll, listActive, getById, listPublic };
