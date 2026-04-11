@@ -1,28 +1,28 @@
 'use strict';
 
 /**
- * Middleware guards for platform-level staff access.
- * Requires authenticate to have run first (req.user populated with platformStaff).
+ * Guards para acceso de plataforma.
+ * Basado en role.scope = 'PLATFORM'.
  */
 
-const requirePlatformStaff = (req, res, next) => {
-  if (!req.user?.platformStaff?.is_active) {
+const requirePlatform = (req, res, next) => {
+  if (req.user?.role?.scope !== 'PLATFORM') {
     return res.status(403).json({
       success: false,
-      message: 'Acceso restringido a staff de plataforma.',
+      message: 'Acceso restringido al personal de plataforma.',
     });
   }
   next();
 };
 
-const requirePlatformWrite = (req, res, next) => {
-  if (!req.user?.platformStaff?.platformRole?.can_write) {
+const requirePlatformAdmin = (req, res, next) => {
+  if (req.user?.role?.name !== 'PLATFORM_ADMIN') {
     return res.status(403).json({
       success: false,
-      message: 'Se requieren permisos de escritura de plataforma.',
+      message: 'Acceso restringido al administrador de plataforma.',
     });
   }
   next();
 };
 
-module.exports = { requirePlatformStaff, requirePlatformWrite };
+module.exports = { requirePlatform, requirePlatformAdmin };

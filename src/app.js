@@ -6,7 +6,7 @@ const cors         = require('cors');
 const helmet       = require('helmet');
 const morgan       = require('morgan');
 const compression  = require('compression');
- const rateLimit    = require('express-rate-limit'); // TEMPORALMENTE DESACTIVADO
+const rateLimit    = require('express-rate-limit');
 const swaggerUi    = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
@@ -26,47 +26,33 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// RATE LIMITERS TEMPORALMENTE DESACTIVADOS
- const globalLimiter = rateLimit({
-   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-   max:      parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
-   standardHeaders: true,
-   legacyHeaders:   false,
-   message: { success: false, message: 'Demasiadas solicitudes. Intenta en 15 minutos.' },
- });
- app.use('/api', globalLimiter);
+const globalLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+  max:      parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { success: false, message: 'Demasiadas solicitudes. Intenta en 15 minutos.' },
+});
+app.use('/api', globalLimiter);
 
-// // Límites estrictos para endpoints sensibles de autenticación
- const loginLimiter = rateLimit({
-   windowMs: 15 * 60 * 1000, // 15 minutos
-   max:      10,
-   standardHeaders: true,
-   legacyHeaders:   false,
-   message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
- });
-
- const forgotPasswordLimiter = rateLimit({
-   windowMs: 60 * 60 * 1000, // 1 hora
-   max:      5,
-   standardHeaders: true,
-   legacyHeaders:   false,
-   message: { success: false, message: 'Demasiadas solicitudes de recuperación. Intenta en 1 hora.' },
- });
-
- // fin de limiters
-const noopLimiter = (req, res, next) => next(); //limiter que no hace nada, para desarrollo y pruebas sin restricciones
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max:      10,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
+});
 
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'PymeFlowEc API',
-      version: '1.0.0',
-      description: 'API REST del sistema ERP Multi-tenant para PYMEs',
+      version: '2.0.0',
+      description: 'API REST del sistema ERP Multi-tenant para PYMEs — Schema v3',
     },
     servers: [
       { url: 'http://localhost:8080/api', description: 'Desarrollo local' },
-      { url: 'https://tu-dominio.amazonaws.com/api', description: 'Producción AWS' },
     ],
     components: {
       securitySchemes: {
@@ -89,28 +75,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ── RUTAS ─────────────────────────────────────────────────────
-app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter, forgotPasswordLimiter, globalLimiter)); //loginLimiter,forgotPasswordLimiter,globalLimiter -- dev noopLimiter, noopLimiter
-app.use('/api/organizations',   require('./routes/organization.routes'));
+// ── RUTAS ─────────────────────────────────────────────────────────
+app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter));
+app.use('/api/companies',       require('./routes/company.routes'));
 app.use('/api/users',           require('./routes/user.routes'));
-app.use('/api/clients',         require('./routes/client.routes'));
+app.use('/api/customers',       require('./routes/storeCustomer.routes'));
 app.use('/api/suppliers',       require('./routes/supplier.routes'));
 app.use('/api/products',        require('./routes/product.routes'));
-app.use('/api/categories',      require('./routes/category.routes'));
 app.use('/api/tax-rates',       require('./routes/taxRate.routes'));
-app.use('/api/roles',           require('./routes/role.routes'));
-app.use('/api/orders',          require('./routes/order.routes'));
 app.use('/api/invoices',        require('./routes/invoice.routes'));
-app.use('/api/payments',        require('./routes/payment.routes'));
-app.use('/api/credit-notes',    require('./routes/creditNote.routes'));
-app.use('/api/purchase-orders', require('./routes/purchaseOrder.routes'));
-app.use('/api/cash-registers',  require('./routes/cashRegister.routes'));
-app.use('/api/expenses',        require('./routes/expense.routes'));
-app.use('/api/platform/modules', require('./routes/platformModule.routes'));
-app.use('/api/platform/staff',   require('./routes/platformStaff.routes'));
+app.use('/api/platform/modules', require('./routes/module.routes'));
 app.use('/api/module-requests',  require('./routes/moduleRequest.routes'));
 
-// ── 404 ───────────────────────────────────────────────────────
+// ── 404 ───────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -118,7 +95,7 @@ app.use((req, res) => {
   });
 });
 
-// ── ERROR HANDLER ─────────────────────────────────────────────
+// ── ERROR HANDLER ─────────────────────────────────────────────────
 app.use(errorHandler);
 
 module.exports = app;

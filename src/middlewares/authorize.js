@@ -1,28 +1,28 @@
 'use strict';
 
 /**
- * Permission-based authorization middleware.
- * Usage: authorize('products.create')  — user must hold that permission code.
+ * Autorización basada en scope y nombre de rol.
  *
- * Users with no organization_id are system-level (cross-org admin) and
- * bypass all permission checks automatically.
+ * Uso:
+ *   authorize('PLATFORM')          → cualquier rol con scope PLATFORM
+ *   authorize('STORE_ADMIN')       → solo STORE_ADMIN
+ *   authorize('PLATFORM', 'STORE_ADMIN') → cualquiera de los dos
  */
-const authorize = (...permissions) => {
+const authorize = (...allowed) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'No autenticado.' });
     }
 
-    // System-level users (no org) bypass permission checks
-    if (!req.user.organization_id) return next();
+    const roleName  = req.user.role?.name  ?? '';
+    const roleScope = req.user.role?.scope ?? '';
 
-    const userPerms = req.user.permissionCodes ?? [];
-    const hasPermission = permissions.some(p => userPerms.includes(p));
+    const hasAccess = allowed.some(a => a === roleName || a === roleScope);
 
-    if (!hasPermission) {
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
-        message: `Sin permiso para realizar esta acción. Se requiere: ${permissions.join(' o ')}.`,
+        message: `Acceso denegado. Se requiere: ${allowed.join(' o ')}.`,
       });
     }
 

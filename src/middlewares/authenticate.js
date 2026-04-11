@@ -1,8 +1,8 @@
 'use strict';
 
-const jwt            = require('jsonwebtoken');
-const { sequelize }  = require('../config/database');
-const { User, Role, Permission, Organization, PlatformStaff, PlatformRole } = require('../models');
+const jwt           = require('jsonwebtoken');
+const { sequelize } = require('../config/database');
+const { User, Role, Company } = require('../models');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -14,46 +14,28 @@ const authenticate = async (req, res, next) => {
     const token   = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Establezca las variables de sesión RLS a partir de la carga útil JWT ANTES de consultar la base de datos,
-    // para que User.findOne se ejecute con el contexto de inquilino/usuario correcto.
-    await sequelize.query(`SET LOCAL app.current_org_id  = '${decoded.organization_id ?? 0}'`);
-    await sequelize.query(`SET LOCAL app.current_user_id = '${decoded.id}'`);
+    const companyId = decoded.company_id ?? 0;
+    const userId    = decoded.id;
+
+    // Informar a la BD el usuario actual (para audit_logs trigger)
+    await sequelize.query(`SET LOCAL app.current_user_id = '${userId}'`);
 
     const user = await User.findOne({
-      where: { id: decoded.id, status: 'active' },
+      where: { id: userId, status: 'ACTIVE' },
       include: [
-        {
-          model: Role,
-          as:    'role',
-          include: [{ model: Permission, as: 'permissions', attributes: ['code'] }],
-        },
-        { model: Organization, as: 'organization' },
-        {
-          model: PlatformStaff,
-          as:    'platformStaff',
-          required: false,
-          where: { is_active: true },
-          include: [{ model: PlatformRole, as: 'platformRole' }],
-        },
+        { model: Role,    as: 'role',    attributes: ['id', 'name', 'scope'] },
+        { model: Company, as: 'company', attributes: ['id', 'name', 'status'] },
       ],
+      attributes: ['id', 'full_name', 'email', 'company_id', 'role_id', 'status'],
     });
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Usuario no encontrado o inactivo.' });
     }
 
-    if (user.organization_id && user.organization?.status !== 'active') {
-      return res.status(403).json({ success: false, message: 'Organización inactiva.' });
+    if (user.company_id && user.company?.status !== 'ACTIVE') {
+      return res.status(403).json({ success: false, message: 'Empresa inactiva o suspendida.' });
     }
-
-    // Flat permission code list for authorize middleware
-    user.permissionCodes = user.role?.permissions?.map(p => p.code) ?? [];
-
-    // Set RLS session variables
-    const orgId  = user.organization_id ?? 0;
-    const userId = user.id;
-    await sequelize.query(`SET LOCAL app.current_org_id  = '${orgId}'`);
-    await sequelize.query(`SET LOCAL app.current_user_id = '${userId}'`);
 
     req.user = user;
     next();

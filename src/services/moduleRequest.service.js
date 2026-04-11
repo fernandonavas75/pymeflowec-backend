@@ -2,19 +2,19 @@
 
 const { sequelize }  = require('../config/database');
 const {
-  ModuleRequest, PlatformModule, Organization, User,
-  OrganizationModule, PlatformAuditLog, PlatformStaff, PlatformRole,
+  CompanyModuleRequest, CompanyModule, Module, Company, User,
 } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const list = async ({ organizationId, status, limit, offset }) => {
-  const where = { organization_id: organizationId };
+// Lista solicitudes de una empresa
+const list = async ({ companyId, status, limit, offset }) => {
+  const where = { company_id: companyId };
   if (status) where.status = status;
 
-  return ModuleRequest.findAndCountAll({
+  return CompanyModuleRequest.findAndCountAll({
     where,
     include: [
-      { model: PlatformModule, as: 'module' },
+      { model: Module, as: 'module' },
       { model: User, as: 'requester', attributes: ['id', 'full_name', 'email'] },
       { model: User, as: 'reviewer',  attributes: ['id', 'full_name', 'email'] },
     ],
@@ -24,16 +24,16 @@ const list = async ({ organizationId, status, limit, offset }) => {
   });
 };
 
-// Platform admin: list all orgs' requests
+// Admin de plataforma: lista todas las solicitudes
 const listAll = async ({ status, limit, offset }) => {
   const where = {};
   if (status) where.status = status;
 
-  return ModuleRequest.findAndCountAll({
+  return CompanyModuleRequest.findAndCountAll({
     where,
     include: [
-      { model: PlatformModule,  as: 'module' },
-      { model: Organization,    as: 'organization', attributes: ['id', 'name', 'ruc'] },
+      { model: Module,  as: 'module' },
+      { model: Company, as: 'company', attributes: ['id', 'name', 'ruc'] },
       { model: User, as: 'requester', attributes: ['id', 'full_name', 'email'] },
       { model: User, as: 'reviewer',  attributes: ['id', 'full_name', 'email'] },
     ],
@@ -43,62 +43,56 @@ const listAll = async ({ status, limit, offset }) => {
   });
 };
 
-const create = async ({ organizationId, moduleId, requestedBy, notes }) => {
-  const mod = await PlatformModule.findByPk(moduleId);
+const create = async ({ companyId, moduleId, requestedBy, comments }) => {
+  const mod = await Module.findByPk(moduleId);
   if (!mod || !mod.is_active) throw new AppError('Módulo no disponible.', 400);
 
-  const existing = await ModuleRequest.findOne({
-    where: { organization_id: organizationId, module_id: moduleId, status: 'pending' },
+  const existing = await CompanyModuleRequest.findOne({
+    where: { company_id: companyId, module_id: moduleId, status: 'PENDING' },
   });
   if (existing) throw new AppError('Ya existe una solicitud pendiente para este módulo.', 409);
 
-  return ModuleRequest.create({
-    organization_id: organizationId,
-    module_id:       moduleId,
-    requested_by:    requestedBy,
-    notes,
+  return CompanyModuleRequest.create({
+    company_id:   companyId,
+    module_id:    moduleId,
+    requested_by: requestedBy,
+    comments,
   });
 };
 
 const approve = async (requestId, reviewerId) => {
-  const staff = await PlatformStaff.findOne({
-    where: { user_id: reviewerId, is_active: true },
-    include: [{ model: PlatformRole, as: 'platformRole' }],
+  return sequelize.transaction(async (t) => {
+    const req = await CompanyModuleRequest.findByPk(requestId, { transaction: t });
+    if (!req || req.status !== 'PENDING') {
+      throw new AppError('Solicitud no encontrada o no está pendiente.', 404);
+    }
+
+    await req.update(
+      { status: 'APPROVED', reviewed_by: reviewerId, reviewed_at: new Date() },
+      { transaction: t }
+    );
+
+    // Activar módulo en company_modules (upsert)
+    const [cm] = await CompanyModule.findOrCreate({
+      where:    { company_id: req.company_id, module_id: req.module_id },
+      defaults: { is_active: true, approved_by: reviewerId, approved_at: new Date() },
+      transaction: t,
+    });
+    if (!cm.is_active) {
+      await cm.update({ is_active: true, approved_by: reviewerId, approved_at: new Date() }, { transaction: t });
+    }
+
+    return req;
   });
-  if (!staff?.platformRole?.can_write) {
-    throw new AppError('Sin permisos para aprobar solicitudes.', 403);
-  }
-
-  const result = await sequelize.query(
-    'SELECT approve_module_request(:requestId, :reviewerId)',
-    { replacements: { requestId, reviewerId } }
-  );
-
-  return result;
 };
 
-const reject = async (requestId, reviewerId, reason) => {
-  const staff = await PlatformStaff.findOne({
-    where: { user_id: reviewerId, is_active: true },
-    include: [{ model: PlatformRole, as: 'platformRole' }],
-  });
-  if (!staff?.platformRole?.can_write) {
-    throw new AppError('Sin permisos para rechazar solicitudes.', 403);
+const reject = async (requestId, reviewerId, comments) => {
+  const req = await CompanyModuleRequest.findByPk(requestId);
+  if (!req || req.status !== 'PENDING') {
+    throw new AppError('Solicitud no encontrada o no está pendiente.', 404);
   }
-
-  await sequelize.query(
-    'SELECT reject_module_request(:requestId, :reviewerId, :reason)',
-    { replacements: { requestId, reviewerId, reason: reason ?? null } }
-  );
-};
-
-const cancel = async (requestId, organizationId) => {
-  const req = await ModuleRequest.findOne({
-    where: { id: requestId, organization_id: organizationId, status: 'pending' },
-  });
-  if (!req) throw new AppError('Solicitud no encontrada o no está pendiente.', 404);
-  await req.update({ status: 'cancelled' });
+  await req.update({ status: 'REJECTED', reviewed_by: reviewerId, reviewed_at: new Date(), comments });
   return req;
 };
 
-module.exports = { list, listAll, create, approve, reject, cancel };
+module.exports = { list, listAll, create, approve, reject };

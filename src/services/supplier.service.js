@@ -3,55 +3,38 @@
 const { Supplier } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
-const list = async (organizationId, { limit, offset } = {}) => {
-  return await Supplier.findAndCountAll({
-    where: { organization_id: organizationId },
+const list = async (companyId, { limit, offset } = {}) => {
+  return Supplier.findAndCountAll({
+    where: { company_id: companyId },
     order: [['created_at', 'DESC']],
     limit,
     offset,
   });
 };
 
-const getById = async (id, organizationId) => {
-  const supplier = await Supplier.findOne({ where: { id, organization_id: organizationId } });
+const getById = async (id, companyId) => {
+  const supplier = await Supplier.findOne({ where: { id, company_id: companyId } });
   if (!supplier) throw new AppError('Proveedor no encontrado.', 404);
   return supplier;
 };
 
-const create = async (data, organizationId) => {
-  const { business_name, ruc, contact_name, email, phone, address, payment_terms, notes } = data;
-  return await Supplier.create({
-    organization_id: organizationId,
-    business_name,
-    ruc,
-    contact_name,
-    email,
-    phone,
-    address,
-    payment_terms,
-    notes,
-  });
+const create = async (data, companyId) => {
+  const { name, ruc, phone, email, address } = data;
+  return Supplier.create({ company_id: companyId, name, ruc, phone, email, address });
 };
 
-const update = async (id, data, organizationId) => {
-  const supplier = await Supplier.findOne({ where: { id, organization_id: organizationId } });
+const update = async (id, data, companyId) => {
+  const supplier = await Supplier.findOne({ where: { id, company_id: companyId } });
   if (!supplier) throw new AppError('Proveedor no encontrado.', 404);
-  const { business_name, ruc, contact_name, email, phone, address, payment_terms, notes } = data;
-  await supplier.update({ business_name, ruc, contact_name, email, phone, address, payment_terms, notes });
+  const { name, ruc, phone, email, address } = data;
+  await supplier.update({ name, ruc, phone, email, address });
   return supplier;
 };
 
-const setStatus = async (id, status, organizationId) => {
-  const supplier = await Supplier.findOne({ where: { id, organization_id: organizationId } });
-  if (!supplier) throw new AppError('Proveedor no encontrado.', 404);
-  await supplier.update({ status });
-  return supplier;
-};
-
-const remove = async (id, organizationId) => {
-  const supplier = await Supplier.findOne({ where: { id, organization_id: organizationId } });
+const remove = async (id, companyId) => {
+  const supplier = await Supplier.findOne({ where: { id, company_id: companyId } });
   if (!supplier) throw new AppError('Proveedor no encontrado.', 404);
   await supplier.destroy();
 };
 
-module.exports = { list, getById, create, update, setStatus, remove };
+module.exports = { list, getById, create, update, remove };

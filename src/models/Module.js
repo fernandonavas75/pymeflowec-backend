@@ -3,32 +3,35 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-// Catálogo global de roles — sin FK a company.
-// scope = PLATFORM (admin/soporte) | STORE (admin_tienda/vendedor)
-const Role = sequelize.define('Role', {
+const Module = sequelize.define('Module', {
   id: {
     type:          DataTypes.BIGINT,
     autoIncrement: true,
     primaryKey:    true,
   },
-  name: {
+  code: {
     type:      DataTypes.STRING(50),
     allowNull: false,
     unique:    true,
     validate: { notEmpty: true },
   },
-  scope: {
-    type:      DataTypes.STRING(20),
+  name: {
+    type:      DataTypes.STRING(100),
     allowNull: false,
-    validate: { isIn: [['PLATFORM', 'STORE']] },
+    validate: { notEmpty: true },
   },
   description: { type: DataTypes.STRING(255), allowNull: true },
+  is_active: {
+    type:         DataTypes.BOOLEAN,
+    allowNull:    false,
+    defaultValue: true,
+  },
 }, {
-  tableName:  'roles',
+  tableName:  'modules',
   schema:     'erp',
   timestamps: true,
   createdAt:  'created_at',
   updatedAt:  'updated_at',
 });
 
-module.exports = Role;
+module.exports = Module;

@@ -3,49 +3,50 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
+// company_id NULL  → usuario de plataforma (scope PLATFORM)
+// company_id !NULL → usuario de tienda (scope STORE)
 const User = sequelize.define('User', {
   id: {
-    type:          DataTypes.INTEGER,
+    type:          DataTypes.BIGINT,
     autoIncrement: true,
     primaryKey:    true,
   },
-  organization_id: { type: DataTypes.INTEGER, allowNull: true },
-  role_id:         { type: DataTypes.INTEGER, allowNull: false },
+  company_id: { type: DataTypes.BIGINT, allowNull: true },
+  role_id:    { type: DataTypes.BIGINT, allowNull: false },
   full_name: {
-    type:      DataTypes.STRING(255),
+    type:      DataTypes.STRING(150),
     allowNull: false,
-    validate: { notEmpty: true, len: [2, 255] },
+    validate: { notEmpty: true, len: [2, 150] },
   },
   email: {
-    type:      DataTypes.STRING(255),
+    type:      DataTypes.STRING(150),
     allowNull: false,
     unique:    true,
     validate: { isEmail: true, notEmpty: true },
   },
-  password_hash:       { type: DataTypes.TEXT,        allowNull: false },
-  reset_token:         { type: DataTypes.STRING(255), allowNull: true },
-  reset_token_expires: { type: DataTypes.DATE,        allowNull: true },
+  password_hash: { type: DataTypes.TEXT, allowNull: false },
   status: {
     type:         DataTypes.STRING(20),
     allowNull:    false,
-    defaultValue: 'active',
-    validate: { isIn: [['active', 'inactive', 'suspended']] },
+    defaultValue: 'ACTIVE',
+    validate: { isIn: [['ACTIVE', 'INACTIVE', 'LOCKED']] },
   },
 }, {
   tableName:  'users',
+  schema:     'erp',
   timestamps: true,
   paranoid:   true,
   createdAt:  'created_at',
   updatedAt:  'updated_at',
   deletedAt:  'deleted_at',
   hooks: {
-    beforeCreate: (user) => {
-      if (user.email)     user.email     = user.email.toLowerCase().trim();
-      if (user.full_name) user.full_name = user.full_name.trim();
+    beforeCreate: (u) => {
+      if (u.email)     u.email     = u.email.toLowerCase().trim();
+      if (u.full_name) u.full_name = u.full_name.trim();
     },
-    beforeUpdate: (user) => {
-      if (user.changed('email'))     user.email     = user.email.toLowerCase().trim();
-      if (user.changed('full_name')) user.full_name = user.full_name.trim();
+    beforeUpdate: (u) => {
+      if (u.changed('email'))     u.email     = u.email.toLowerCase().trim();
+      if (u.changed('full_name')) u.full_name = u.full_name.trim();
     },
   },
 });

@@ -3,41 +3,26 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const AUDIT_ACTIONS = [
-  'CREATE', 'UPDATE', 'DELETE',
-  'LOGIN', 'LOGOUT',
-  'RESET_REQUEST', 'RESET_PASSWORD',
-  'ACTIVATE', 'DEACTIVATE', 'SUSPEND',
-  'STATUS_CHANGE', 'EXPORT', 'BULK_UPDATE',
-  'CASH_OPEN', 'CASH_CLOSE', 'PAYMENT',
-  'SRI_SEND', 'SRI_AUTHORIZE', 'SRI_REJECT',
-  'EXPENSE_CREATE', 'EXPENSE_CANCEL',
-  'MODULE_REQUEST', 'MODULE_ACTIVATE', 'MODULE_DEACTIVATE',
-];
-
+// Registro unificado de auditoría (plataforma + tienda).
+// Poblado automáticamente por triggers en la BD.
 const AuditLog = sequelize.define('AuditLog', {
   id: {
-    type:          DataTypes.INTEGER,
+    type:          DataTypes.BIGINT,
     autoIncrement: true,
     primaryKey:    true,
   },
-  organization_id: { type: DataTypes.INTEGER, allowNull: true },
-  user_id:         { type: DataTypes.INTEGER, allowNull: true },
-  action: {
-    type:      DataTypes.STRING(50),
-    allowNull: false,
-    validate: { notEmpty: true, isIn: [AUDIT_ACTIONS] },
-  },
-  module:      { type: DataTypes.STRING(100), allowNull: false, validate: { notEmpty: true } },
-  description: { type: DataTypes.TEXT,        allowNull: true },
-  ip_address:  { type: DataTypes.INET,        allowNull: true },
-  user_agent:  { type: DataTypes.STRING(500), allowNull: true },
-  entity_type: { type: DataTypes.STRING(100), allowNull: true },
-  entity_id:   { type: DataTypes.INTEGER,     allowNull: true },
+  company_id:  { type: DataTypes.BIGINT,      allowNull: true },
+  user_id:     { type: DataTypes.BIGINT,      allowNull: true },
+  action:      { type: DataTypes.STRING(50),  allowNull: false },
+  table_name:  { type: DataTypes.STRING(100), allowNull: false },
+  record_id:   { type: DataTypes.BIGINT,      allowNull: true },
   old_values:  { type: DataTypes.JSONB,       allowNull: true },
   new_values:  { type: DataTypes.JSONB,       allowNull: true },
+  ip_address:  { type: DataTypes.STRING(45),  allowNull: true },
+  user_agent:  { type: DataTypes.TEXT,        allowNull: true },
 }, {
   tableName:  'audit_logs',
+  schema:     'erp',
   timestamps: true,
   createdAt:  'created_at',
   updatedAt:  false,

@@ -1,24 +1,24 @@
 'use strict';
 
-const svc        = require('../services/moduleRequest.service');
+const svc = require('../services/moduleRequest.service');
 const { parsePagination, paginatedResponse } = require('../utils/pagination');
 
 const list = async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
-    const { status }              = req.query;
-    const organizationId          = req.user.organization_id;
+    const { status } = req.query;
+    const companyId  = req.user.company_id;
 
-    const result = await svc.list({ organizationId, status, limit, offset });
+    const result = await svc.list({ companyId, status, limit, offset });
     res.json({ success: true, ...paginatedResponse(result, page, limit) });
   } catch (err) { next(err); }
 };
 
-// Platform admin only
+// Solo admin de plataforma
 const listAll = async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePagination(req.query);
-    const { status }              = req.query;
+    const { status } = req.query;
 
     const result = await svc.listAll({ status, limit, offset });
     res.json({ success: true, ...paginatedResponse(result, page, limit) });
@@ -27,34 +27,29 @@ const listAll = async (req, res, next) => {
 
 const create = async (req, res, next) => {
   try {
-    const { module_id, notes } = req.body;
-    const organizationId       = req.user.organization_id;
-    const requestedBy          = req.user.id;
-
-    const request = await svc.create({ organizationId, moduleId: module_id, requestedBy, notes });
+    const { module_id, comments } = req.body;
+    const request = await svc.create({
+      companyId:   req.user.company_id,
+      moduleId:    module_id,
+      requestedBy: req.user.id,
+      comments,
+    });
     res.status(201).json({ success: true, data: request });
   } catch (err) { next(err); }
 };
 
 const approve = async (req, res, next) => {
   try {
-    await svc.approve(Number(req.params.id), req.user.id);
-    res.json({ success: true, message: 'Solicitud aprobada.' });
+    const data = await svc.approve(Number(req.params.id), req.user.id);
+    res.json({ success: true, message: 'Solicitud aprobada.', data });
   } catch (err) { next(err); }
 };
 
 const reject = async (req, res, next) => {
   try {
-    await svc.reject(Number(req.params.id), req.user.id, req.body.reason);
-    res.json({ success: true, message: 'Solicitud rechazada.' });
+    const data = await svc.reject(Number(req.params.id), req.user.id, req.body.comments);
+    res.json({ success: true, message: 'Solicitud rechazada.', data });
   } catch (err) { next(err); }
 };
 
-const cancel = async (req, res, next) => {
-  try {
-    const result = await svc.cancel(Number(req.params.id), req.user.organization_id);
-    res.json({ success: true, data: result });
-  } catch (err) { next(err); }
-};
-
-module.exports = { list, listAll, create, approve, reject, cancel };
+module.exports = { list, listAll, create, approve, reject };

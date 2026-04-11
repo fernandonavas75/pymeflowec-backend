@@ -1,16 +1,16 @@
 'use strict';
 
-const { Product, Category, TaxRate, PriceHistory, InventoryMovement } = require('../models');
+const { Product, Supplier, TaxRate, InventoryMovement } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
 const productInclude = [
-  { model: Category, as: 'category', attributes: ['id', 'name'] },
-  { model: TaxRate,  as: 'taxRate',  attributes: ['id', 'name', 'percentage'] },
+  { model: Supplier, as: 'supplier', attributes: ['id', 'name'] },
+  { model: TaxRate,  as: 'taxRate',  attributes: ['id', 'tax_name', 'percentage'] },
 ];
 
-const list = async (organizationId, { limit, offset } = {}) => {
-  return await Product.findAndCountAll({
-    where:   { organization_id: organizationId },
+const list = async (companyId, { limit, offset } = {}) => {
+  return Product.findAndCountAll({
+    where:   { company_id: companyId },
     include: productInclude,
     order:   [['created_at', 'DESC']],
     limit,
@@ -18,97 +18,90 @@ const list = async (organizationId, { limit, offset } = {}) => {
   });
 };
 
-const getById = async (id, organizationId) => {
+const getById = async (id, companyId) => {
   const product = await Product.findOne({
-    where:   { id, organization_id: organizationId },
+    where:   { id, company_id: companyId },
     include: productInclude,
   });
   if (!product) throw new AppError('Producto no encontrado.', 404);
   return product;
 };
 
-const create = async (data, organizationId) => {
-  const { name, description, category_id, tax_rate_id, barcode, sku, unit,
-          stock, min_stock, cost_price, unit_price } = data;
+const create = async (data, companyId) => {
+  const { name, description, sku, supplier_id, tax_rate_id,
+          purchase_price, sale_price, stock, min_stock } = data;
 
-  if (category_id) {
-    const cat = await Category.findOne({ where: { id: category_id, organization_id: organizationId } });
-    if (!cat) throw new AppError('Categoría no encontrada.', 404);
+  if (supplier_id) {
+    const sup = await Supplier.findOne({ where: { id: supplier_id, company_id: companyId } });
+    if (!sup) throw new AppError('Proveedor no encontrado.', 404);
+  }
+  if (tax_rate_id) {
+    const tr = await TaxRate.findOne({ where: { id: tax_rate_id, company_id: companyId } });
+    if (!tr) throw new AppError('Tasa de impuesto no encontrada.', 404);
   }
 
-  return await Product.create({
-    organization_id: organizationId,
-    name, description, category_id, tax_rate_id,
-    barcode, sku,
-    unit:       unit       || 'unidad',
-    stock:      stock      ?? 0,
-    min_stock:  min_stock  ?? 0,
-    cost_price: cost_price ?? 0,
-    unit_price,
+  const product = await Product.create({
+    company_id: companyId,
+    name, description, sku, supplier_id, tax_rate_id,
+    purchase_price: purchase_price ?? 0,
+    sale_price:     sale_price     ?? 0,
+    stock:          stock          ?? 0,
+    min_stock:      min_stock      ?? 0,
   });
+
+  return getById(product.id, companyId);
 };
 
-const update = async (id, data, organizationId, userId) => {
-  const product = await Product.findOne({ where: { id, organization_id: organizationId } });
+const update = async (id, data, companyId) => {
+  const product = await Product.findOne({ where: { id, company_id: companyId } });
   if (!product) throw new AppError('Producto no encontrado.', 404);
 
-  const { name, description, category_id, tax_rate_id, barcode, sku, unit,
-          min_stock, cost_price, unit_price } = data;
+  const { name, description, sku, supplier_id, tax_rate_id,
+          purchase_price, sale_price, min_stock, status } = data;
 
-  // Record price history when prices change
-  if (unit_price !== undefined && parseFloat(unit_price) !== parseFloat(product.unit_price)) {
-    await PriceHistory.create({
-      organization_id: organizationId,
-      product_id:      product.id,
-      price_type:      'sale',
-      old_price:       product.unit_price,
-      new_price:       unit_price,
-      changed_by:      userId || null,
-    });
-  }
-  if (cost_price !== undefined && parseFloat(cost_price) !== parseFloat(product.cost_price)) {
-    await PriceHistory.create({
-      organization_id: organizationId,
-      product_id:      product.id,
-      price_type:      'cost',
-      old_price:       product.cost_price,
-      new_price:       cost_price,
-      changed_by:      userId || null,
-    });
-  }
-
-  await product.update({ name, description, category_id, tax_rate_id, barcode, sku, unit, min_stock, cost_price, unit_price });
-  return getById(product.id, organizationId);
+  await product.update({ name, description, sku, supplier_id, tax_rate_id,
+                         purchase_price, sale_price, min_stock, status });
+  return getById(product.id, companyId);
 };
 
-const adjust = async (id, quantity, movement_type, reason, organizationId, userId) => {
-  const product = await Product.findOne({ where: { id, organization_id: organizationId } });
+// Ajuste manual de inventario
+const adjust = async (id, quantity, movement_type, notes, companyId, userId) => {
+  const product = await Product.findOne({ where: { id, company_id: companyId } });
   if (!product) throw new AppError('Producto no encontrado.', 404);
 
-  // The DB trigger trg_update_stock_from_movement handles the actual stock update atomically
+  if (movement_type === 'OUT' && product.stock < quantity) {
+    throw new AppError('Stock insuficiente.', 400);
+  }
+
   const movement = await InventoryMovement.create({
-    organization_id: organizationId,
-    product_id:      product.id,
+    company_id:     companyId,
+    product_id:     product.id,
     movement_type,
     quantity,
-    stock_before:    product.stock,  // trigger will recalculate
-    stock_after:     product.stock,  // trigger will recalculate
-    reason,
-    user_id:         userId || null,
+    reference_type: 'MANUAL',
+    notes,
+    created_by:     userId,
   });
+
+  const newStock = movement_type === 'IN'
+    ? product.stock + quantity
+    : movement_type === 'OUT'
+      ? product.stock - quantity
+      : quantity; // ADJUSTMENT → set absolute
+  await product.update({ stock: newStock });
 
   return movement;
 };
 
-const setStatus = async (id, status, organizationId) => {
-  const product = await Product.findOne({ where: { id, organization_id: organizationId } });
+const setStatus = async (id, status, companyId) => {
+  const product = await Product.findOne({ where: { id, company_id: companyId } });
   if (!product) throw new AppError('Producto no encontrado.', 404);
   await product.update({ status });
-  return getById(product.id, organizationId);
+  return getById(product.id, companyId);
 };
 
-const remove = async (id, organizationId) => {
-  const product = await Product.findOne({ where: { id, organization_id: organizationId } });
+const remove = async (id, companyId) => {
+  const product = await Product.findOne({ where: { id, company_id: companyId } });
   if (!product) throw new AppError('Producto no encontrado.', 404);
   await product.destroy();
 };

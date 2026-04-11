@@ -5,59 +5,40 @@ const { sequelize } = require('../config/database');
 
 const Invoice = sequelize.define('Invoice', {
   id: {
-    type:          DataTypes.INTEGER,
+    type:          DataTypes.BIGINT,
     autoIncrement: true,
     primaryKey:    true,
   },
-  organization_id: { type: DataTypes.INTEGER, allowNull: false },
-  order_id:        { type: DataTypes.INTEGER, allowNull: true },
-  client_id:       { type: DataTypes.INTEGER, allowNull: true },  // NULL = Consumidor Final
-  user_id:         { type: DataTypes.INTEGER, allowNull: false },
+  company_id:     { type: DataTypes.BIGINT, allowNull: false },
+  customer_id:    { type: DataTypes.BIGINT, allowNull: true  }, // NULL = Consumidor Final eliminado
+  created_by:     { type: DataTypes.BIGINT, allowNull: false },
   invoice_number: {
-    type:      DataTypes.STRING(50),
+    type:      DataTypes.STRING(20),
     allowNull: false,
     validate: { notEmpty: true },
   },
-  // SRI - Facturación electrónica
-  clave_acceso:          { type: DataTypes.STRING(49), allowNull: true },
-  authorization_number:  { type: DataTypes.STRING(49), allowNull: true },
-  sri_estado: {
-    type:         DataTypes.STRING(20),
-    allowNull:    true,
-    defaultValue: 'pendiente',
-    validate: { isIn: [['pendiente', 'enviada', 'autorizada', 'rechazada', 'anulada']] },
-  },
-  sri_fecha_autorizacion: { type: DataTypes.DATE,        allowNull: true },
-  sri_xml_path:           { type: DataTypes.STRING(500), allowNull: true },
-  sri_pdf_ride_path:      { type: DataTypes.STRING(500), allowNull: true },
-
   issue_date: {
-    type:         DataTypes.DATEONLY,
+    type:         DataTypes.DATE,
     allowNull:    false,
     defaultValue: DataTypes.NOW,
   },
-  due_date:    { type: DataTypes.DATEONLY,       allowNull: true },
-  subtotal:    { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
-  tax:         { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
-  total:       { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
-  tax_breakdown: { type: DataTypes.JSONB,        allowNull: true },
+  subtotal:   { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0, validate: { min: 0 } },
+  tax_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0, validate: { min: 0 } },
+  total:      { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0, validate: { min: 0 } },
   status: {
     type:         DataTypes.STRING(20),
     allowNull:    false,
-    defaultValue: 'issued',
-    validate: { isIn: [['issued', 'paid', 'partial', 'cancelled', 'overdue']] },
-  },
-  payment_status: {
-    type:         DataTypes.STRING(20),
-    allowNull:    false,
-    defaultValue: 'pending',
-    validate: { isIn: [['pending', 'partial', 'paid']] },
+    defaultValue: 'ISSUED',
+    validate: { isIn: [['ISSUED', 'CANCELLED']] },
   },
 }, {
   tableName:  'invoices',
+  schema:     'erp',
   timestamps: true,
+  paranoid:   true,
   createdAt:  'created_at',
   updatedAt:  'updated_at',
+  deletedAt:  'deleted_at',
 });
 
 module.exports = Invoice;
