@@ -24,3 +24,4 @@ Thumbs.db
 # Build / producción
 dist/
 build/
+/.claude
