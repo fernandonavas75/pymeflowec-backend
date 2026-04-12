@@ -30,4 +30,11 @@ const listPublic = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { listAll, listActive, getById, listPublic };
+const getCompanyCatalog = async (req, res, next) => {
+  try {
+    const data = await svc.getCompanyCatalog(req.user.company_id);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+module.exports = { listAll, listActive, getById, listPublic, getCompanyCatalog };

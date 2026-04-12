@@ -36,6 +36,12 @@ const getById = async (id, companyId) => {
 const create = async (data, companyId) => {
   const { full_name, email, password, role_id } = data;
 
+  // Si el creador es de plataforma (company_id = null) debe pasar la empresa destino en el body
+  const effectiveCompanyId = companyId ?? data.company_id ?? null;
+  if (!effectiveCompanyId) {
+    throw new AppError('Se requiere especificar la empresa para el nuevo usuario.', 400);
+  }
+
   // El rol debe tener scope STORE
   const role = await Role.findOne({ where: { id: role_id, scope: 'STORE' } });
   if (!role) throw new AppError('Rol de tienda no encontrado.', 404);
@@ -45,13 +51,13 @@ const create = async (data, companyId) => {
 
   const password_hash = await bcrypt.hash(password, 12);
   const user = await User.create({
-    company_id: companyId,
+    company_id: effectiveCompanyId,
     role_id,
     full_name,
     email,
     password_hash,
   });
-  return getById(user.id, companyId);
+  return getById(user.id, effectiveCompanyId);
 };
 
 const update = async (id, data, companyId) => {

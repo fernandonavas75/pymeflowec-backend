@@ -7,7 +7,8 @@ const authorize    = require('../middlewares/authorize');
 
 router.get('/',    authenticate, authorize('STORE_ADMIN'), controller.list);
 router.get('/:id', authenticate, authorize('STORE_ADMIN'), controller.getById);
-router.post('/',   authenticate, authorize('STORE_ADMIN'), controller.create);
+// PLATFORM_ADMIN puede crear usuarios para cualquier empresa (pasa company_id en el body)
+router.post('/',   authenticate, authorize('STORE_ADMIN', 'PLATFORM'), controller.create);
 router.put('/:id', authenticate, authorize('STORE_ADMIN'), controller.update);
 
 router.patch('/:id/activate',        authenticate, authorize('STORE_ADMIN'), controller.activate);

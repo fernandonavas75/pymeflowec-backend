@@ -1,6 +1,6 @@
 'use strict';
 
-const { Module, CompanyModule } = require('../models');
+const { Module, CompanyModule, CompanyModuleRequest } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
 // Lista todos los módulos del catálogo (admin de plataforma)
@@ -32,4 +32,44 @@ const listPublic = async () => {
   });
 };
 
-module.exports = { listAll, listActive, getById, listPublic };
+/**
+ * Retorna todos los módulos activos de la plataforma junto con el estado
+ * de acceso de la empresa: APPROVED | PENDING | REJECTED | null
+ */
+const getCompanyCatalog = async (companyId) => {
+  const [modules, companyModules, requests] = await Promise.all([
+    Module.findAll({ where: { is_active: true }, order: [['name', 'ASC']] }),
+    CompanyModule.findAll({ where: { company_id: companyId } }),
+    CompanyModuleRequest.findAll({
+      where: { company_id: companyId },
+      order: [['created_at', 'DESC']],
+    }),
+  ]);
+
+  const activeMap  = new Map(companyModules.map(cm => [Number(cm.module_id), cm]));
+  // Para cada módulo sólo nos interesa la solicitud más reciente
+  const requestMap = new Map();
+  for (const r of requests) {
+    if (!requestMap.has(Number(r.module_id))) requestMap.set(Number(r.module_id), r);
+  }
+
+  return modules.map(mod => {
+    const id = Number(mod.id);
+    const cm  = activeMap.get(id);
+    const req = requestMap.get(id);
+
+    let status     = null;
+    let request_id = null;
+
+    if (cm && cm.is_active) {
+      status = 'APPROVED';
+    } else if (req) {
+      status     = req.status;   // PENDING | APPROVED | REJECTED
+      request_id = req.id;
+    }
+
+    return { ...mod.toJSON(), status, request_id };
+  });
+};
+
+module.exports = { listAll, listActive, getById, listPublic, getCompanyCatalog };
