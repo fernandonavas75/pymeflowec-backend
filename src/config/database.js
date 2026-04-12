@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
+const logger = require('../utils/logger');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -28,7 +29,7 @@ const sequelize = new Sequelize(
     },
 
     // Logs: solo en desarrollo, silencioso en producción
-    logging: isProduction ? false : (msg) => console.log(`[DB] ${msg}`),
+    logging: isProduction ? false : (msg) => logger.debug(msg),
 
     // Convenciones del schema — snake_case, timestamps automáticos
     define: {
@@ -47,10 +48,10 @@ const sequelize = new Sequelize(
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log(`[DB] Conexión establecida — ${process.env.DB_NAME}@${process.env.DB_HOST}`);
+    logger.info(`[DB] Conexión establecida — ${process.env.DB_NAME}@${process.env.DB_HOST}`);
   } catch (error) {
-    console.error('[DB] Error de conexión:', error.message);
-    process.exit(1); // Si no hay DB, el servidor no debe arrancar
+    logger.error('[DB] Error de conexión:', { message: error.message });
+    process.exit(1);
   }
 };
 

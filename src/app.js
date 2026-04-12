@@ -4,15 +4,20 @@ require('dotenv').config();
 const express      = require('express');
 const cors         = require('cors');
 const helmet       = require('helmet');
-const morgan       = require('morgan');
 const compression  = require('compression');
 const rateLimit    = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
 const swaggerUi    = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
+const logger           = require('./utils/logger');
+const redisClient      = require('./config/redis');
 const { errorHandler } = require('./middlewares/errorHandler');
 
 const app = express();
+
+// Confía en el proxy de AWS ALB/ECS para IP real del cliente
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({
@@ -24,7 +29,26 @@ app.use(cors({
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// HTTP request logger usando winston (reemplaza morgan)
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'http';
+    logger.log(level, `${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`, {
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+  });
+  next();
+});
+
+// Construye opciones de store Redis si el cliente está disponible
+const redisStoreOptions = (prefix) =>
+  redisClient
+    ? { store: new RedisStore({ sendCommand: (...args) => redisClient.call(...args), prefix }) }
+    : {};
 
 const globalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
@@ -32,6 +56,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders:   false,
   message: { success: false, message: 'Demasiadas solicitudes. Intenta en 15 minutos.' },
+  ...redisStoreOptions('rl:global:'),
 });
 app.use('/api', globalLimiter);
 
@@ -41,6 +66,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders:   false,
   message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
+  ...redisStoreOptions('rl:login:'),
 });
 
 const swaggerSpec = swaggerJsdoc({
@@ -78,6 +104,7 @@ app.get('/health', (req, res) => {
 // ── RUTAS ─────────────────────────────────────────────────────────
 app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter));
 app.use('/api/companies',       require('./routes/company.routes'));
+app.use('/api/roles',           require('./routes/role.routes'));
 app.use('/api/users',           require('./routes/user.routes'));
 app.use('/api/customers',       require('./routes/storeCustomer.routes'));
 app.use('/api/suppliers',       require('./routes/supplier.routes'));
