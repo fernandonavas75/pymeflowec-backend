@@ -1,0 +1,14 @@
+# Mismo contenido que .gitignore pero explícito para EB
+node_modules/
+.env
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+.sequelizerc
+dist/
+build/
+/.claude
