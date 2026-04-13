@@ -2,7 +2,14 @@
 
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
+const pg     = require('pg');
 const logger = require('../utils/logger');
+
+// PostgreSQL devuelve NUMERIC/DECIMAL como string por defecto.
+// Esto lo convierte a número en todas las consultas.
+pg.types.setTypeParser(pg.types.builtins.NUMERIC, (val) => parseFloat(val));
+pg.types.setTypeParser(pg.types.builtins.FLOAT8,  (val) => parseFloat(val));
+pg.types.setTypeParser(pg.types.builtins.INT8,    (val) => parseInt(val, 10));
 
 const isProduction = process.env.NODE_ENV === 'production';
 
