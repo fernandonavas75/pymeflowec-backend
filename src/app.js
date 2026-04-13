@@ -92,6 +92,13 @@ const swaggerSpec = swaggerJsdoc({
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+<<<<<<< Updated upstream
+=======
+app.get('/', (req, res) => {
+  res.status(200).send('PymeFlowEc API OK');
+});
+/*
+>>>>>>> Stashed changes
 app.get('/health', (req, res) => {
   res.status(200).json({
     success:   true,
@@ -100,7 +107,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-
+*/
 // ── RUTAS ─────────────────────────────────────────────────────────
 app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter));
 app.use('/api/companies',       require('./routes/company.routes'));
