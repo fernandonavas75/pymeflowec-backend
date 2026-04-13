@@ -49,7 +49,7 @@ const create = async (data, companyId) => {
   const exists = await User.findOne({ where: { email: email.toLowerCase().trim() } });
   if (exists) throw new AppError('El email ya está registrado.', 409);
 
-  const password_hash = await bcrypt.hash(password, 12);
+  const password_hash = await bcrypt.hash(password, 10);
   const user = await User.create({
     company_id: effectiveCompanyId,
     role_id,
