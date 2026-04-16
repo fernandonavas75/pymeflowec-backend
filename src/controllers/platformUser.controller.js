@@ -76,4 +76,28 @@ const deactivate = async (req, res, next) => {
   return setStatus(req, res, next);
 };
 
-module.exports = { list, activate, deactivate, lock };
+/**
+ * Lista los usuarios de una empresa específica.
+ * Accesible para cualquier usuario de plataforma (PLATFORM_ADMIN o PLATFORM_STAFF).
+ */
+const listByCompany = async (req, res, next) => {
+  try {
+    const companyId = Number(req.params.id);
+    if (!companyId) return res.status(400).json({ success: false, message: 'company_id inválido.' });
+
+    const { page, limit, offset } = parsePagination(req.query);
+
+    const result = await User.findAndCountAll({
+      where:      { company_id: companyId },
+      include:    [roleInclude],
+      attributes: { exclude: ['password_hash'] },
+      order:      [['created_at', 'DESC']],
+      limit,
+      offset,
+    });
+
+    res.status(200).json({ success: true, ...paginatedResponse(result, page, limit) });
+  } catch (err) { next(err); }
+};
+
+module.exports = { list, listByCompany, activate, deactivate, lock };
