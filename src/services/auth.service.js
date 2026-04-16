@@ -3,7 +3,7 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const { sequelize } = require('../config/database');
-const { User, Role, Company } = require('../models');
+const { User, Role, Company, StoreCustomer } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
 const generateTokens = (user) => {
@@ -116,6 +116,16 @@ const register = async (data) => {
   const { company, user: newUser } = await sequelize.transaction(async (t) => {
     const company = await Company.create(
       { name: company_name, ruc: company_ruc || null, email: company_email || null, phone: company_phone || null },
+      { transaction: t }
+    );
+
+    await StoreCustomer.create(
+      {
+        company_id:      company.id,
+        customer_type:   'FINAL_CONSUMER',
+        document_number: '9999999999999',
+        full_name:       'Consumidor Final',
+      },
       { transaction: t }
     );
 
