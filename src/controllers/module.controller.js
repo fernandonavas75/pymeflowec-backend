@@ -32,7 +32,21 @@ const listPublic = async (req, res, next) => {
 
 const getCompanyCatalog = async (req, res, next) => {
   try {
-    const data = await svc.getCompanyCatalog(req.user.company_id);
+    // Un admin de plataforma puede consultar el catálogo de cualquier empresa
+    // pasando company_id como query param. Usuarios de tienda siempre ven el suyo.
+    const isPlatform = req.user?.role?.scope === 'PLATFORM';
+    const companyId  = isPlatform && req.query.company_id
+      ? Number(req.query.company_id)
+      : req.user.company_id;
+
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requiere company_id para consultar el catálogo de módulos.',
+      });
+    }
+
+    const data = await svc.getCompanyCatalog(companyId);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };

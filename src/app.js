@@ -117,7 +117,9 @@ app.use('/api/products',        require('./routes/product.routes'));
 app.use('/api/tax-rates',       require('./routes/taxRate.routes'));
 app.use('/api/invoices',        require('./routes/invoice.routes'));
 app.use('/api/platform/modules', require('./routes/module.routes'));
+app.use('/api/platform',         require('./routes/platform.routes'));
 app.use('/api/module-requests',  require('./routes/moduleRequest.routes'));
+app.use('/api/audit-logs',       require('./routes/auditLog.routes'));
 
 // ── 404 ───────────────────────────────────────────────────────────
 app.use((req, res) => {
