@@ -1,6 +1,7 @@
 'use strict';
 
-const { Company } = require('../models');
+const { Company, StoreCustomer } = require('../models');
+const { sequelize } = require('../config/database');
 const { AppError } = require('../middlewares/errorHandler');
 
 const list = async ({ limit, offset } = {}) => {
@@ -25,7 +26,24 @@ const create = async (data) => {
     if (exists) throw new AppError('Ya existe una empresa con ese RUC.', 409);
   }
 
-  return Company.create({ name, business_name, ruc, email, phone, address });
+  return sequelize.transaction(async (t) => {
+    const company = await Company.create(
+      { name, business_name, ruc, email, phone, address },
+      { transaction: t }
+    );
+
+    await StoreCustomer.create(
+      {
+        company_id:      company.id,
+        customer_type:   'FINAL_CONSUMER',
+        document_number: '9999999999999',
+        full_name:       'Consumidor Final',
+      },
+      { transaction: t }
+    );
+
+    return company;
+  });
 };
 
 const update = async (id, data) => {
