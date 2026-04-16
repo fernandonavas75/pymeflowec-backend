@@ -17,8 +17,13 @@ const authenticate = async (req, res, next) => {
     const companyId = decoded.company_id ?? 0;
     const userId    = decoded.id;
 
-    // Informar a la BD el usuario actual (para audit_logs trigger)
-    await sequelize.query(`SET LOCAL app.current_user_id = '${userId}'`);
+    // Contexto de sesión para los triggers de audit_logs
+    const ip = (req.ip || '').replace(/'/g, "''");
+    const ua = (req.get('user-agent') || '').replace(/'/g, "''").slice(0, 500);
+
+    await sequelize.query(`SET LOCAL app.current_user_id   = '${userId}'`);
+    await sequelize.query(`SET LOCAL app.current_ip        = '${ip}'`);
+    await sequelize.query(`SET LOCAL app.current_ua        = '${ua}'`);
 
     const user = await User.findOne({
       where: { id: userId, status: 'ACTIVE' },
