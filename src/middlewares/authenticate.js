@@ -51,9 +51,9 @@ const authenticate = async (req, res, next) => {
     // created_at dentro de la ventana del request) y los completamos con
     // user_id, ip y user_agent desde Node.js.
     if (WRITE_METHODS.has(req.method)) {
-      const ip        = req.ip   || null;
+      const ip        = req.ip || req.socket?.remoteAddress || 'unknown';
       const ua        = (req.get('user-agent') || '').slice(0, 500) || null;
-      const since     = new Date();   // justo antes de next() → cubre todo el request
+      const since     = new Date().toISOString(); // ISO UTC explícito para evitar ambigüedad de timezone
       const reqUserId = user.id;
 
       res.on('finish', async () => {
@@ -61,11 +61,12 @@ const authenticate = async (req, res, next) => {
         try {
           await sequelize.query(
             `UPDATE erp.audit_logs
-                SET user_id    = COALESCE(user_id, :userId),
+                SET user_id    = :userId,
                     ip_address = :ip,
                     user_agent = :ua
-              WHERE ip_address IS NULL
-                AND created_at >= :since`,
+              WHERE user_id    IS NULL
+                AND ip_address IS NULL
+                AND created_at >= :since::timestamptz`,
             {
               replacements: { userId: reqUserId, ip, ua, since },
               type: sequelize.QueryTypes.UPDATE,
