@@ -1,5 +1,7 @@
 'use strict';
 
+const path         = require('path');
+const fs           = require('fs');
 const router       = require('express').Router();
 const userCtrl     = require('../controllers/platformUser.controller');
 const { Role }     = require('../models');
@@ -32,5 +34,30 @@ router.get('/roles', authenticate, requirePlatformAdmin, async (req, res, next) 
 
 // ── Usuarios de empresa — solo lectura, cualquier usuario de plataforma ─
 router.get('/companies/:id/users',      authenticate, requirePlatform, userCtrl.listByCompany);
+
+// ── Logs del servidor — solo PLATFORM_ADMIN ──────────────────────────
+router.get('/server-logs', authenticate, requirePlatformAdmin, (req, res, next) => {
+  try {
+    const logFile = path.resolve(__dirname, '../../logs/combined.log');
+    const limit   = Math.min(Number(req.query.limit) || 200, 500);
+    const level   = req.query.level ?? '';
+
+    if (!fs.existsSync(logFile)) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const raw = fs.readFileSync(logFile, 'utf8');
+    let entries = raw
+      .split('\n')
+      .filter(l => l.trim())
+      .map(l => { try { return JSON.parse(l); } catch { return { level: 'info', message: l, timestamp: '' }; } })
+      .reverse();
+
+    if (level) entries = entries.filter(e => e.level === level);
+    entries = entries.slice(0, limit);
+
+    res.json({ success: true, data: entries });
+  } catch (err) { next(err); }
+});
 
 module.exports = router;
