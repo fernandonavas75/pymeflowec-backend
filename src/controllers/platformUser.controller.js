@@ -1,8 +1,10 @@
 'use strict';
 
+const bcrypt = require('bcryptjs');
 const { Op }    = require('sequelize');
 const { User, Role } = require('../models');
 const { parsePagination, paginatedResponse } = require('../utils/pagination');
+const { AppError } = require('../middlewares/errorHandler');
 
 const roleInclude = {
   model:      Role,
@@ -100,4 +102,45 @@ const listByCompany = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, listByCompany, activate, deactivate, lock };
+/**
+ * Crea un nuevo usuario de plataforma (PLATFORM_ADMIN o PLATFORM_STAFF).
+ * Solo accesible para PLATFORM_ADMIN.
+ */
+const create = async (req, res, next) => {
+  try {
+    const { full_name, email, password, role_id } = req.body;
+
+    if (!full_name || !email || !password || !role_id) {
+      return res.status(400).json({ success: false, message: 'full_name, email, password y role_id son requeridos.' });
+    }
+
+    const role = await Role.findOne({ where: { id: role_id, scope: 'PLATFORM' } });
+    if (!role) {
+      return res.status(404).json({ success: false, message: 'Rol de plataforma no encontrado.' });
+    }
+
+    const exists = await User.findOne({ where: { email: email.toLowerCase().trim() } });
+    if (exists) {
+      return res.status(409).json({ success: false, message: 'El email ya está registrado.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const user = await User.create({
+      full_name:    full_name.trim(),
+      email:        email.toLowerCase().trim(),
+      password_hash,
+      role_id,
+      company_id:   null,
+      status:       'ACTIVE',
+    });
+
+    const created = await User.findByPk(user.id, {
+      include:    [roleInclude],
+      attributes: { exclude: ['password_hash'] },
+    });
+
+    res.status(201).json({ success: true, data: created });
+  } catch (err) { next(err); }
+};
+
+module.exports = { list, listByCompany, create, activate, deactivate, lock };
