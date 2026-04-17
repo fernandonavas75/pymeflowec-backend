@@ -34,6 +34,16 @@ const platformStoreAccess = (...allowedStoreRoles) => {
         return res.status(400).json({ success: false, message: 'company_id inválido.' });
       }
 
+      // PLATFORM_SUPPORT solo puede leer en modo cliente
+      const isAdmin = roleName === 'PLATFORM_ADMIN';
+      const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+      if (!isAdmin && isWrite) {
+        return res.status(403).json({
+          success: false,
+          message: 'El soporte de plataforma solo puede visualizar en modo cliente.',
+        });
+      }
+
       // Inyectamos company_id en req.user (como objeto plano para evitar
       // conflictos con la instancia Sequelize).
       const plain = req.user.get ? req.user.get({ plain: true }) : { ...req.user };
