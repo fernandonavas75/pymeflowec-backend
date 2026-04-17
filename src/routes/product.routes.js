@@ -11,7 +11,7 @@ router.get('/:id', authenticate, platformStoreAccess('STORE'),       controller.
 router.post('/',   authenticate, platformStoreAccess('STORE_ADMIN'), controller.create);
 router.put('/:id', authenticate, platformStoreAccess('STORE_ADMIN'), controller.update);
 
-router.patch('/:id/stock',      authenticate, platformStoreAccess('STORE_ADMIN'), controller.adjustStock);
+router.patch('/:id/stock',      authenticate, platformStoreAccess('STORE_ADMIN', 'STORE_WAREHOUSE'), controller.adjustStock);
 router.patch('/:id/activate',   authenticate, platformStoreAccess('STORE_ADMIN'), controller.activate);
 router.patch('/:id/deactivate', authenticate, platformStoreAccess('STORE_ADMIN'), controller.deactivate);
 router.delete('/:id',           authenticate, platformStoreAccess('STORE_ADMIN'), controller.remove);
