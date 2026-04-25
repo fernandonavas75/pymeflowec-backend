@@ -14,6 +14,9 @@ const logger           = require('./utils/logger');
 const redisClient      = require('./config/redis');
 const { errorHandler } = require('./middlewares/errorHandler');
 
+const {verifyConnection} = require('./utils/mailer');
+verifyConnection();
+
 const app = express();
 
 // Confía en el proxy de AWS ALB/ECS para IP real del cliente

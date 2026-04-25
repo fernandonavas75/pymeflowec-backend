@@ -5,18 +5,30 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   host:   process.env.MAIL_HOST,
   port:   parseInt(process.env.MAIL_PORT, 10),
-  secure: process.env.MAIL_PORT === '465',
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
   },
 });
 
-const sendPasswordResetEmail = async (to, fullName, resetToken) => {
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+//para depurar
 
-  await transporter.sendMail({
-    from:    `"PymeFlowEc" <${process.env.MAIL_USER}>`,
+const verifyConnection = async () => {
+  try {
+    await transporter.verify();
+    console.log('Conexión al servidor de correo verificada correctamente.');
+  } catch (error) {
+    console.error('Error al verificar la conexión al servidor de correo:', error);
+  }
+};
+
+
+const sendPasswordResetEmail = async (to, fullName, resetToken) => {
+  try {
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+  const info = await transporter.sendMail({
+    from:    process.env.MAIL_FROM,
     to,
     subject: 'Recuperación de contraseña — PymeFlowEc',
     html: `
@@ -37,6 +49,13 @@ const sendPasswordResetEmail = async (to, fullName, resetToken) => {
       </div>
     `,
   });
+   console.log('Correo de recuperación enviado:', info.messageId);
+   return true;
+  }catch (error) {
+    console.error('Error al enviar el correo de recuperación:', error);
+    return false;
+  };
+  
 };
 
-module.exports = { transporter, sendPasswordResetEmail };
+module.exports = { transporter, sendPasswordResetEmail, verifyConnection };

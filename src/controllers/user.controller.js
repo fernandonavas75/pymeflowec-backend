@@ -2,6 +2,7 @@
 
 const service = require('../services/user.service');
 const { parsePagination, paginatedResponse } = require('../utils/pagination');
+const userService = require('../services/user.service');
 
 const list = async (req, res, next) => {
   try {
@@ -61,6 +62,22 @@ const changePassword = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const result = await service.forgotPassword(email);
+    res.status(200).json({ success: true, ...result });
+  } catch (err) { next(err); }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, new_password } = req.body;
+    await service.resetPassword(token, new_password);
+    res.status(200).json({ success: true, message: 'Contraseña restablecida correctamente.' });
+  } catch (err) { next(err); }
+};
+
 const remove = async (req, res, next) => {
   try {
     await service.remove(req.params.id, req.user.company_id);
@@ -68,4 +85,4 @@ const remove = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, getById, create, update, activate, deactivate, lock, changePassword, remove };
+module.exports = { list, getById, create, update, activate, deactivate, lock, changePassword, remove, forgotPassword, resetPassword };

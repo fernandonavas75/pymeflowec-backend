@@ -6,6 +6,11 @@ const authenticate         = require('../middlewares/authenticate');
 const authorize            = require('../middlewares/authorize');
 const platformStoreAccess  = require('../middlewares/platformStoreAccess');
 
+// Rutas públicas (sin autenticación)
+router.post('/forgot-password', controller.forgotPassword);
+router.post('/reset-password',  controller.resetPassword);
+
+// Rutas protegidas
 router.get('/',    authenticate, platformStoreAccess('STORE_ADMIN'), controller.list);
 router.get('/:id', authenticate, platformStoreAccess('STORE_ADMIN'), controller.getById);
 // PLATFORM_ADMIN puede crear usuarios para cualquier empresa (pasa company_id en el body)

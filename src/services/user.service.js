@@ -3,6 +3,8 @@
 const bcrypt = require('bcryptjs');
 const { User, Role } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
+const crypto = require('crypto');
+const {sendPasswordResetEmail} = require('../utils/mailer');
 
 const userAttrs = { exclude: ['password_hash'] };
 
@@ -96,10 +98,35 @@ const changePassword = async (id, currentPassword, newPassword, companyId) => {
   await user.update({ password_hash });
 };
 
+const forgotPassword = async (email) => {
+  const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
+  if (!user) throw new AppError('Usuario no encontrado.', 404);
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const resetTokenExpires = new Date(Date.now() + 30 * 60 * 1000);
+  await user.update({ reset_token: resetTokenHash, reset_token_expires: resetTokenExpires });
+  await sendPasswordResetEmail(user.email, user.full_name, resetToken);
+  return { message: 'Correo de recuperación enviado si el usuario existe.' };
+};
+const resetPassword = async (token, newPassword) => {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await User.findOne({
+    where: {
+      reset_token: tokenHash,
+    },
+  });
+  if (!user) throw new AppError('Token inválido o expirado.', 400);
+  if (!user.reset_token_expires || new Date() > new Date(user.reset_token_expires)) {
+    throw new AppError('Token inválido o expirado.', 400);
+  }
+  const password_hash = await bcrypt.hash(newPassword, 12);
+  await user.update({ password_hash, reset_token: null, reset_token_expires: null });
+};
+
 const remove = async (id, companyId) => {
   const user = await User.findOne({ where: { id, company_id: companyId } });
   if (!user) throw new AppError('Usuario no encontrado.', 404);
   await user.destroy();
 };
 
-module.exports = { list, getById, create, update, setStatus, changePassword, remove };
+module.exports = { list, getById, create, update, setStatus, changePassword, forgotPassword, resetPassword, remove };

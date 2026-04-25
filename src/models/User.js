@@ -25,6 +25,14 @@ const User = sequelize.define('User', {
     validate: { isEmail: true, notEmpty: true },
   },
   password_hash: { type: DataTypes.TEXT, allowNull: false },
+  reset_token:{
+    type: DataTypes.TEXT,
+    allowNull:true,
+  },
+  reset_token_expires: {
+    type: DataTypes.DATE,
+    allowNull:true,
+  },  
   status: {
     type:         DataTypes.STRING(20),
     allowNull:    false,
