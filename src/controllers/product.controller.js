@@ -64,4 +64,11 @@ const remove = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, getById, create, update, adjustStock, activate, deactivate, remove };
+const bulkCreate = async (req, res, next) => {
+  try {
+    const result = await service.bulkCreate(req.body.products, req.user.company_id);
+    res.status(200).json({ success: true, ...result });
+  } catch (err) { next(err); }
+};
+
+module.exports = { list, getById, create, update, adjustStock, activate, deactivate, remove, bulkCreate };

@@ -53,6 +53,8 @@ const getCompanyCatalog = async (companyId) => {
     if (!requestMap.has(Number(r.module_id))) requestMap.set(Number(r.module_id), r);
   }
 
+  const now = new Date();
+
   return modules.map(mod => {
     const id = Number(mod.id);
     const cm  = activeMap.get(id);
@@ -60,15 +62,21 @@ const getCompanyCatalog = async (companyId) => {
 
     let status     = null;
     let request_id = null;
+    let expires_at = null;
 
-    if (cm && cm.is_active) {
-      status = 'APPROVED';
+    const isActive = cm && cm.is_active && (!cm.expires_at || cm.expires_at > now);
+
+    if (isActive) {
+      status     = 'APPROVED';
+      expires_at = cm.expires_at ?? null;
+      request_id = req?.id ?? null;
     } else if (req) {
-      status     = req.status;   // PENDING | APPROVED | REJECTED
+      status     = req.status;   // PENDING | APPROVED | REJECTED | REVOKED
       request_id = req.id;
+      expires_at = req.expires_at ?? null;
     }
 
-    return { ...mod.toJSON(), status, request_id };
+    return { ...mod.toJSON(), status, request_id, expires_at };
   });
 };
 

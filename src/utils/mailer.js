@@ -58,4 +58,31 @@ const sendPasswordResetEmail = async (to, fullName, resetToken) => {
   
 };
 
-module.exports = { transporter, sendPasswordResetEmail, verifyConnection };
+const WelcomeEmail = async (to, fullName) => {
+
+  try {
+    const info = await transporter.sendMail({
+      from:    process.env.MAIL_FROM,
+      to,
+      subject: 'Bienvenido a PymeFlowEc — Tu nuevo sistema ERP',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1f3864;">¡Bienvenido a PymeFlowEc!</h2>
+          <p>Hola <strong>${fullName}</strong>,</p>
+          <p>Estamos encantados de tenerte con nosotros. Has iniciado sesión en PymeFlowEc, tu nuevo sistema ERP diseñado especialmente para pymes.</p>
+          <p>Explora nuestras funcionalidades y descubre cómo podemos ayudarte a optimizar tu negocio.</p>
+          <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+          <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
+          <p style="color:#999; font-size:12px;">PymeFlowEc — Sistema ERP para PYMEs</p>
+        </div>
+      `,
+    });
+    console.log('Correo de bienvenida enviado:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Error al enviar el correo de bienvenida:', error);
+    return false;
+  }
+};
+
+module.exports = { transporter, sendPasswordResetEmail, verifyConnection, WelcomeEmail };

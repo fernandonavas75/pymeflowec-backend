@@ -39,4 +39,11 @@ const adjustStockRules = [
   body('reason').optional().trim(),
 ];
 
-module.exports = { createRules, updateRules, adjustStockRules };
+// Solo valida estructura del array; la validación por fila se hace en el servicio
+const bulkCreateRules = [
+  body('products')
+    .isArray({ min: 1, max: 300 })
+    .withMessage('products debe ser un array de 1 a 300 elementos.'),
+];
+
+module.exports = { createRules, updateRules, adjustStockRules, bulkCreateRules };

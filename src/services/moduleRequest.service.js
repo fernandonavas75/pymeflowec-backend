@@ -60,26 +60,28 @@ const create = async ({ companyId, moduleId, requestedBy, comments }) => {
   });
 };
 
-const approve = async (requestId, reviewerId) => {
+const approve = async (requestId, reviewerId, expiresAt) => {
   return sequelize.transaction(async (t) => {
     const req = await CompanyModuleRequest.findByPk(requestId, { transaction: t });
     if (!req || req.status !== 'PENDING') {
       throw new AppError('Solicitud no encontrada o no está pendiente.', 404);
     }
 
+    const expiresDate = expiresAt ? new Date(expiresAt) : null;
+
     await req.update(
-      { status: 'APPROVED', reviewed_by: reviewerId, reviewed_at: new Date() },
+      { status: 'APPROVED', reviewed_by: reviewerId, reviewed_at: new Date(), expires_at: expiresDate },
       { transaction: t }
     );
 
     // Activar módulo en company_modules (upsert)
     const [cm] = await CompanyModule.findOrCreate({
       where:    { company_id: req.company_id, module_id: req.module_id },
-      defaults: { is_active: true, approved_by: reviewerId, approved_at: new Date() },
+      defaults: { is_active: true, approved_by: reviewerId, approved_at: new Date(), expires_at: expiresDate },
       transaction: t,
     });
-    if (!cm.is_active) {
-      await cm.update({ is_active: true, approved_by: reviewerId, approved_at: new Date() }, { transaction: t });
+    if (!cm.is_active || cm.expires_at?.getTime() !== expiresDate?.getTime()) {
+      await cm.update({ is_active: true, approved_by: reviewerId, approved_at: new Date(), expires_at: expiresDate }, { transaction: t });
     }
 
     return req;
@@ -95,4 +97,53 @@ const reject = async (requestId, reviewerId, comments) => {
   return req;
 };
 
-module.exports = { list, listAll, create, approve, reject };
+// Revoca un módulo ya aprobado: desactiva el acceso y marca la solicitud como REVOKED
+const revoke = async (requestId, reviewerId) => {
+  return sequelize.transaction(async (t) => {
+    const req = await CompanyModuleRequest.findByPk(requestId, { transaction: t });
+    if (!req || req.status !== 'APPROVED') {
+      throw new AppError('Solicitud no encontrada o el módulo no está aprobado.', 404);
+    }
+
+    await req.update(
+      { status: 'REVOKED', reviewed_by: reviewerId, reviewed_at: new Date() },
+      { transaction: t }
+    );
+
+    await CompanyModule.update(
+      { is_active: false },
+      { where: { company_id: req.company_id, module_id: req.module_id }, transaction: t }
+    );
+
+    return req;
+  });
+};
+
+// Revoca directamente por company_id + module_id (módulos sin solicitud formal)
+const revokeByModule = async (companyId, moduleId, reviewerId) => {
+  return sequelize.transaction(async (t) => {
+    const cm = await CompanyModule.findOne({
+      where: { company_id: companyId, module_id: moduleId },
+      transaction: t,
+    });
+    if (!cm || !cm.is_active) {
+      throw new AppError('El módulo no está activo para esta empresa.', 404);
+    }
+
+    await cm.update({ is_active: false }, { transaction: t });
+
+    // Marcar la solicitud más reciente como REVOKED si existe
+    const req = await CompanyModuleRequest.findOne({
+      where: { company_id: companyId, module_id: moduleId, status: 'APPROVED' },
+      order: [['created_at', 'DESC']],
+      transaction: t,
+    });
+    if (req) {
+      await req.update({ status: 'REVOKED', reviewed_by: reviewerId, reviewed_at: new Date() }, { transaction: t });
+    }
+
+    return cm;
+  });
+};
+
+module.exports = { list, listAll, create, approve, reject, revoke, revokeByModule };

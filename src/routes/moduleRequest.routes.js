@@ -15,5 +15,7 @@ router.post('/', authenticate, platformStoreAccess('STORE_ADMIN'), controller.cr
 router.get('/all',           authenticate, requirePlatform,      controller.listAll);
 router.patch('/:id/approve', authenticate, requirePlatformAdmin, controller.approve);
 router.patch('/:id/reject',  authenticate, requirePlatformAdmin, controller.reject);
+router.patch('/:id/revoke',      authenticate, requirePlatformAdmin, controller.revoke);
+router.patch('/revoke-module',   authenticate, requirePlatformAdmin, controller.revokeByModule);
 
 module.exports = router;

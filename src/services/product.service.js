@@ -106,4 +106,92 @@ const remove = async (id, companyId) => {
   await product.destroy();
 };
 
-module.exports = { list, getById, create, update, adjust, setStatus, remove };
+const bulkCreate = async (productsData, companyId) => {
+  // Pre-carga de IDs válidos para evitar N+1 queries por fila
+  const [suppliers, taxRates] = await Promise.all([
+    Supplier.findAll({ where: { company_id: companyId }, attributes: ['id'] }),
+    TaxRate.findAll({ where: { company_id: companyId }, attributes: ['id'] }),
+  ]);
+
+  const validSupplierIds = new Set(suppliers.map(s => Number(s.id)));
+  const validTaxRateIds  = new Set(taxRates.map(t => Number(t.id)));
+
+  const created = [];
+  const failed  = [];
+
+  for (let i = 0; i < productsData.length; i++) {
+    const row    = productsData[i];
+    const rowNum = i + 1;
+    const errors = [];
+
+    // ── Validación por fila ─────────────────────────────────────────
+    const name = row.name ? String(row.name).trim() : '';
+    if (!name)             errors.push('El nombre es requerido.');
+    else if (name.length < 2)   errors.push('El nombre debe tener al menos 2 caracteres.');
+    else if (name.length > 150) errors.push('El nombre no puede superar 150 caracteres.');
+
+    const salePrice = parseFloat(row.unit_price);
+    if (isNaN(salePrice) || salePrice < 0)
+      errors.push('El precio de venta (unit_price) debe ser un número >= 0.');
+
+    const purchasePrice = (row.cost_price != null && row.cost_price !== '')
+      ? parseFloat(row.cost_price) : 0;
+    if (isNaN(purchasePrice) || purchasePrice < 0)
+      errors.push('El precio de costo (cost_price) debe ser un número >= 0.');
+
+    const stock = (row.stock != null && row.stock !== '') ? parseInt(row.stock, 10) : 0;
+    if (isNaN(stock) || stock < 0)
+      errors.push('El stock debe ser un entero >= 0.');
+
+    const minStock = (row.min_stock != null && row.min_stock !== '') ? parseInt(row.min_stock, 10) : 0;
+    if (isNaN(minStock) || minStock < 0)
+      errors.push('El stock mínimo debe ser un entero >= 0.');
+
+    const supplierId = (row.supplier_id != null && row.supplier_id !== '')
+      ? Number(row.supplier_id) : null;
+    if (supplierId !== null) {
+      if (!Number.isInteger(supplierId) || supplierId < 1)
+        errors.push('supplier_id debe ser un entero positivo.');
+      else if (!validSupplierIds.has(supplierId))
+        errors.push(`Proveedor con id ${supplierId} no encontrado en esta empresa.`);
+    }
+
+    const taxRateId = (row.tax_rate_id != null && row.tax_rate_id !== '')
+      ? Number(row.tax_rate_id) : null;
+    if (taxRateId !== null) {
+      if (!Number.isInteger(taxRateId) || taxRateId < 1)
+        errors.push('tax_rate_id debe ser un entero positivo.');
+      else if (!validTaxRateIds.has(taxRateId))
+        errors.push(`Tasa de impuesto con id ${taxRateId} no encontrada en esta empresa.`);
+    }
+
+    if (errors.length > 0) {
+      failed.push({ row: rowNum, name: row.name || '', errors });
+      continue;
+    }
+
+    // ── Inserción ───────────────────────────────────────────────────
+    try {
+      const product = await Product.create({
+        company_id:     companyId,
+        name,
+        description:    row.description ? String(row.description).trim() : null,
+        sku:            row.sku         ? String(row.sku).trim()          : null,
+        supplier_id:    supplierId,
+        tax_rate_id:    taxRateId,
+        sale_price:     salePrice,
+        purchase_price: purchasePrice,
+        stock,
+        min_stock:      minStock,
+      });
+      created.push(product.id);
+    } catch (err) {
+      const msg = err.errors?.[0]?.message || 'Error al crear el producto.';
+      failed.push({ row: rowNum, name: row.name || '', errors: [msg] });
+    }
+  }
+
+  return { created_count: created.length, failed_count: failed.length, failed };
+};
+
+module.exports = { list, getById, create, update, adjust, setStatus, remove, bulkCreate };

@@ -18,6 +18,7 @@ const CompanyModule = sequelize.define('CompanyModule', {
   },
   approved_by: { type: DataTypes.BIGINT, allowNull: true },
   approved_at: { type: DataTypes.DATE,   allowNull: true },
+  expires_at:  { type: DataTypes.DATE,   allowNull: true },
 }, {
   tableName:  'company_modules',
   schema:     'erp',

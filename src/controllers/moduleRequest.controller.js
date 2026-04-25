@@ -40,7 +40,8 @@ const create = async (req, res, next) => {
 
 const approve = async (req, res, next) => {
   try {
-    const data = await svc.approve(Number(req.params.id), req.user.id);
+    const { expires_at } = req.body;
+    const data = await svc.approve(Number(req.params.id), req.user.id, expires_at ?? null);
     res.json({ success: true, message: 'Solicitud aprobada.', data });
   } catch (err) { next(err); }
 };
@@ -52,4 +53,22 @@ const reject = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, listAll, create, approve, reject };
+const revoke = async (req, res, next) => {
+  try {
+    const data = await svc.revoke(Number(req.params.id), req.user.id);
+    res.json({ success: true, message: 'Módulo revocado.', data });
+  } catch (err) { next(err); }
+};
+
+const revokeByModule = async (req, res, next) => {
+  try {
+    const { company_id, module_id } = req.body;
+    if (!company_id || !module_id) {
+      return res.status(400).json({ success: false, message: 'Se requiere company_id y module_id.' });
+    }
+    const data = await svc.revokeByModule(Number(company_id), Number(module_id), req.user.id);
+    res.json({ success: true, message: 'Módulo revocado.', data });
+  } catch (err) { next(err); }
+};
+
+module.exports = { list, listAll, create, approve, reject, revoke, revokeByModule };

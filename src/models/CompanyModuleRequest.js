@@ -16,11 +16,12 @@ const CompanyModuleRequest = sequelize.define('CompanyModuleRequest', {
     type:         DataTypes.STRING(20),
     allowNull:    false,
     defaultValue: 'PENDING',
-    validate: { isIn: [['PENDING', 'APPROVED', 'REJECTED']] },
+    validate: { isIn: [['PENDING', 'APPROVED', 'REJECTED', 'REVOKED']] },
   },
   reviewed_by: { type: DataTypes.BIGINT, allowNull: true },
   reviewed_at: { type: DataTypes.DATE,   allowNull: true },
   comments:    { type: DataTypes.TEXT,   allowNull: true },
+  expires_at:  { type: DataTypes.DATE,   allowNull: true },
 }, {
   tableName:  'company_module_requests',
   schema:     'erp',
