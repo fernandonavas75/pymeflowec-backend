@@ -1,10 +1,22 @@
 'use strict';
 
 const { body } = require('express-validator');
+const { validateCedula, validateRuc } = require('../utils/ecuadorId');
 
 const createRules = [
   body('business_name').trim().notEmpty().withMessage('La razón social es requerida.'),
-  body('ruc').optional({ checkFalsy: true }).trim().isLength({ min: 10 }).withMessage('El RUC debe tener al menos 10 caracteres.'),
+  body('ruc')
+    .optional({ checkFalsy: true }).trim()
+    .isLength({ min: 10 }).withMessage('El RUC debe tener al menos 10 caracteres.')
+    .custom((value) => {
+      if (!value) return true;
+      if (value.length === 10) {
+        if (!validateCedula(value)) throw new Error('Los datos ingresados no son correctos.');
+      } else if (value.length === 13) {
+        if (!validateRuc(value)) throw new Error('Los datos ingresados no son correctos.');
+      }
+      return true;
+    }),
   body('contact_name').optional().trim(),
   body('email').optional({ checkFalsy: true }).isEmail().withMessage('Email inválido.').normalizeEmail(),
   body('phone').optional().trim(),
@@ -15,7 +27,18 @@ const createRules = [
 
 const updateRules = [
   body('business_name').optional().trim().notEmpty().withMessage('La razón social no puede estar vacía.'),
-  body('ruc').optional({ checkFalsy: true }).trim().isLength({ min: 10 }),
+  body('ruc')
+    .optional({ checkFalsy: true }).trim()
+    .isLength({ min: 10 })
+    .custom((value) => {
+      if (!value) return true;
+      if (value.length === 10) {
+        if (!validateCedula(value)) throw new Error('Los datos ingresados no son correctos.');
+      } else if (value.length === 13) {
+        if (!validateRuc(value)) throw new Error('Los datos ingresados no son correctos.');
+      }
+      return true;
+    }),
   body('contact_name').optional().trim(),
   body('email').optional({ checkFalsy: true }).isEmail().normalizeEmail(),
   body('phone').optional().trim(),

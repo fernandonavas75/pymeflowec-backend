@@ -1,6 +1,7 @@
 'use strict';
 
 const { body } = require('express-validator');
+const { validateRuc } = require('../utils/ecuadorId');
 
 const createRules = [
   body('name').trim().notEmpty().withMessage('El nombre de la organización es requerido.'),
@@ -8,7 +9,11 @@ const createRules = [
     .trim()
     .notEmpty().withMessage('El RUC es requerido.')
     .isLength({ min: 13, max: 13 }).withMessage('El RUC debe tener 13 dígitos.')
-    .isNumeric().withMessage('El RUC debe contener solo dígitos.'),
+    .isNumeric().withMessage('El RUC debe contener solo dígitos.')
+    .custom((value) => {
+      if (!validateRuc(value)) throw new Error('Los datos ingresados no son correctos.');
+      return true;
+    }),
   body('email').isEmail().withMessage('Email inválido.').normalizeEmail(),
   body('phone').optional().trim().isLength({ max: 20 }).withMessage('Teléfono inválido.'),
   body('address').optional().trim(),

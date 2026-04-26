@@ -1,6 +1,7 @@
 'use strict';
 
 const { body } = require('express-validator');
+const { validateRuc } = require('../utils/ecuadorId');
 
 const loginRules = [
   body('email').isEmail().withMessage('Email inválido.').normalizeEmail(),
@@ -17,7 +18,11 @@ const registerRules = [
     .optional({ nullable: true, checkFalsy: true })
     .trim()
     .isLength({ min: 13, max: 13 }).withMessage('El RUC debe tener 13 dígitos.')
-    .isNumeric().withMessage('El RUC debe contener solo dígitos.'),
+    .isNumeric().withMessage('El RUC debe contener solo dígitos.')
+    .custom((value) => {
+      if (!validateRuc(value)) throw new Error('Los datos ingresados no son correctos.');
+      return true;
+    }),
   body('company_email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Email inválido.').normalizeEmail(),
   body('company_phone').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 20 }),
   body('full_name').trim().notEmpty().withMessage('El nombre del administrador es requerido.'),
