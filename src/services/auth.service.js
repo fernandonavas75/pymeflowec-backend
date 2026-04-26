@@ -3,7 +3,7 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const { sequelize } = require('../config/database');
-const { User, Role, Company, StoreCustomer } = require('../models');
+const { User, Role, Company, StoreCustomer, CompanyModule, Module } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
 const generateTokens = (user) => {
@@ -95,9 +95,11 @@ const refresh = async (token) => {
 };
 
 // Registro de nueva empresa + usuario admin
+const TRIAL_DAYS = 15;
+
 const register = async (data) => {
   const { company_name, company_ruc, company_email, company_phone,
-          full_name, email, password } = data;
+          full_name, email, password, module_ids = [] } = data;
 
   const existingUser = await User.findOne({ where: { email: email.toLowerCase().trim() } });
   if (existingUser) throw new AppError('El correo electrónico ya está registrado.', 409);
@@ -136,6 +138,30 @@ const register = async (data) => {
       email,
       password_hash,
     }, { transaction: t });
+
+    if (module_ids.length > 0) {
+      const validModules = await Module.findAll({
+        where: { id: module_ids.map(Number), is_active: true },
+        transaction: t,
+      });
+
+      if (validModules.length > 0) {
+        const trialExpiry = new Date();
+        trialExpiry.setDate(trialExpiry.getDate() + TRIAL_DAYS);
+
+        await CompanyModule.bulkCreate(
+          validModules.map((mod) => ({
+            company_id:  company.id,
+            module_id:   mod.id,
+            is_active:   true,
+            approved_by: null,
+            approved_at: new Date(),
+            expires_at:  trialExpiry,
+          })),
+          { transaction: t }
+        );
+      }
+    }
 
     return { company, user };
   });

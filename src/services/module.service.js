@@ -63,20 +63,34 @@ const getCompanyCatalog = async (companyId) => {
     let status     = null;
     let request_id = null;
     let expires_at = null;
+    let is_trial   = false;
 
-    const isActive = cm && cm.is_active && (!cm.expires_at || cm.expires_at > now);
+    const isExpired = cm && cm.expires_at != null && new Date(cm.expires_at) <= now;
+    const isActive  = cm && cm.is_active && !isExpired;
 
     if (isActive) {
       status     = 'APPROVED';
       expires_at = cm.expires_at ?? null;
       request_id = req?.id ?? null;
+      is_trial   = cm.approved_by == null && cm.expires_at != null;
+    } else if (isExpired) {
+      if (req?.status === 'PENDING') {
+        status     = 'PENDING';
+        request_id = req.id;
+        expires_at = null;
+      } else {
+        status     = 'EXPIRED';
+        expires_at = cm.expires_at;
+        request_id = req?.id ?? null;
+        is_trial   = cm.approved_by == null;
+      }
     } else if (req) {
-      status     = req.status;   // PENDING | APPROVED | REJECTED | REVOKED
+      status     = req.status;   // PENDING | REJECTED | REVOKED
       request_id = req.id;
       expires_at = req.expires_at ?? null;
     }
 
-    return { ...mod.toJSON(), status, request_id, expires_at };
+    return { ...mod.toJSON(), status, request_id, expires_at, is_trial };
   });
 };
 

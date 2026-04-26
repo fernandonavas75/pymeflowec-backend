@@ -23,6 +23,11 @@ const registerRules = [
   body('full_name').trim().notEmpty().withMessage('El nombre del administrador es requerido.'),
   body('email').isEmail().withMessage('Email del administrador inválido.').normalizeEmail(),
   body('password').isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres.'),
+  body('module_ids')
+    .optional({ nullable: true })
+    .isArray().withMessage('module_ids debe ser un arreglo.')
+    .custom((arr) => arr.every((v) => { const n = Number(v); return Number.isInteger(n) && n > 0; }))
+    .withMessage('Cada module_id debe ser un entero positivo.'),
 ];
 
 const changePasswordRules = [

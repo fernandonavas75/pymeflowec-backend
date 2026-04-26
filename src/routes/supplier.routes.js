@@ -1,15 +1,17 @@
 'use strict';
 
-const router               = require('express').Router();
-const controller           = require('../controllers/supplier.controller');
-const authenticate         = require('../middlewares/authenticate');
-const authorize            = require('../middlewares/authorize');
-const platformStoreAccess  = require('../middlewares/platformStoreAccess');
+const router                 = require('express').Router();
+const controller             = require('../controllers/supplier.controller');
+const authenticate           = require('../middlewares/authenticate');
+const platformStoreAccess    = require('../middlewares/platformStoreAccess');
+const { checkModuleExpiry }  = require('../middlewares/checkModuleExpiry');
 
-router.get('/',    authenticate, platformStoreAccess('STORE'),       controller.list);
-router.get('/:id', authenticate, platformStoreAccess('STORE'),       controller.getById);
-router.post('/',   authenticate, platformStoreAccess('STORE_ADMIN'), controller.create);
-router.put('/:id', authenticate, platformStoreAccess('STORE_ADMIN'), controller.update);
-router.delete('/:id', authenticate, platformStoreAccess('STORE_ADMIN'), controller.remove);
+router.use(authenticate, checkModuleExpiry('MOD_SUPPLIERS'));
+
+router.get('/',       platformStoreAccess('STORE'),        controller.list);
+router.get('/:id',    platformStoreAccess('STORE'),        controller.getById);
+router.post('/',      platformStoreAccess('STORE_ADMIN'),  controller.create);
+router.put('/:id',    platformStoreAccess('STORE_ADMIN'),  controller.update);
+router.delete('/:id', platformStoreAccess('STORE_ADMIN'),  controller.remove);
 
 module.exports = router;
