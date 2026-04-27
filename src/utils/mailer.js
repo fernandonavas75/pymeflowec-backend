@@ -58,7 +58,29 @@ const sendPasswordResetEmail = async (to, fullName, resetToken) => {
   
 };
 
-const WelcomeEmail = async (to, fullName) => {
+const WelcomeEmail = async (to, fullName, username, password, modules = []) => {
+  const modulesHtml = modules.length > 0
+    ? `
+        <h3 style="color:#1f3864; margin-top:24px;">Módulos solicitados</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+          <thead>
+            <tr style="background:#2e75b6; color:#fff;">
+              <th style="padding:8px 12px; text-align:left;">Módulo</th>
+              <th style="padding:8px 12px; text-align:left;">Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${modules.map((mod, i) => `
+            <tr style="background:${i % 2 === 0 ? '#f5f8ff' : '#fff'};">
+              <td style="padding:8px 12px; font-weight:600; color:#1f3864;">${mod.name}</td>
+              <td style="padding:8px 12px; color:#555;">${mod.description || 'Sin descripción'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:13px; color:#888; margin-top:8px;">
+          Estos módulos están habilitados con un período de prueba de <strong>15 días</strong>.
+        </p>`
+    : `<p>No seleccionaste módulos al registrarte. Puedes activarlos desde tu panel de administración.</p>`;
 
   try {
     const info = await transporter.sendMail({
@@ -69,9 +91,18 @@ const WelcomeEmail = async (to, fullName) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1f3864;">¡Bienvenido a PymeFlowEc!</h2>
           <p>Hola <strong>${fullName}</strong>,</p>
-          <p>Estamos encantados de tenerte con nosotros. Has iniciado sesión en PymeFlowEc, tu nuevo sistema ERP diseñado especialmente para pymes.</p>
-          <p>Explora nuestras funcionalidades y descubre cómo podemos ayudarte a optimizar tu negocio.</p>
-          <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+          <p>Tu cuenta ha sido creada exitosamente. A continuación encontrarás tus credenciales de acceso:</p>
+
+          <div style="background:#f5f8ff; border-left:4px solid #2e75b6; padding:16px 20px; margin:20px 0; border-radius:4px;">
+            <p style="margin:0 0 8px;"><strong>Usuario:</strong> ${username}</p>
+            <p style="margin:0;"><strong>Contraseña:</strong> ${password}</p>
+          </div>
+          <p style="font-size:13px; color:#e53e3e;">
+            Por seguridad, te recomendamos cambiar tu contraseña en tu primer inicio de sesión.
+          </p>
+
+          ${modulesHtml}
+
           <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
           <p style="color:#999; font-size:12px;">PymeFlowEc — Sistema ERP para PYMEs</p>
         </div>

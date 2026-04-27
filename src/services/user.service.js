@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const { User, Role } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 const crypto = require('crypto');
-const {sendPasswordResetEmail} = require('../utils/mailer');
+const { sendPasswordResetEmail, WelcomeEmail } = require('../utils/mailer');
 
 const userAttrs = { exclude: ['password_hash'] };
 
@@ -59,6 +59,9 @@ const create = async (data, companyId) => {
     email,
     password_hash,
   });
+
+  WelcomeEmail(email, full_name, email, password).catch(() => {});
+
   return getById(user.id, effectiveCompanyId);
 };
 

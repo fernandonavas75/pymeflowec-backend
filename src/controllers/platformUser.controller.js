@@ -5,6 +5,7 @@ const { Op }    = require('sequelize');
 const { User, Role } = require('../models');
 const { parsePagination, paginatedResponse } = require('../utils/pagination');
 const { AppError } = require('../middlewares/errorHandler');
+const { WelcomeEmail } = require('../utils/mailer');
 
 const roleInclude = {
   model:      Role,
@@ -138,6 +139,8 @@ const create = async (req, res, next) => {
       include:    [roleInclude],
       attributes: { exclude: ['password_hash'] },
     });
+
+    WelcomeEmail(email.toLowerCase().trim(), full_name.trim(), email.toLowerCase().trim(), password).catch(() => {});
 
     res.status(201).json({ success: true, data: created });
   } catch (err) { next(err); }

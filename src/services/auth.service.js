@@ -5,6 +5,7 @@ const jwt    = require('jsonwebtoken');
 const { sequelize } = require('../config/database');
 const { User, Role, Company, StoreCustomer, CompanyModule, Module } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
+const { WelcomeEmail } = require('../utils/mailer');
 
 const generateTokens = (user) => {
   const payload = {
@@ -115,7 +116,7 @@ const register = async (data) => {
 
   const password_hash = await bcrypt.hash(password, 12);
 
-  const { company, user: newUser } = await sequelize.transaction(async (t) => {
+  const { company, user: newUser, registeredModules } = await sequelize.transaction(async (t) => {
     const company = await Company.create(
       { name: company_name, ruc: company_ruc || null, email: company_email || null, phone: company_phone || null },
       { transaction: t }
@@ -139,8 +140,9 @@ const register = async (data) => {
       password_hash,
     }, { transaction: t });
 
+    let validModules = [];
     if (module_ids.length > 0) {
-      const validModules = await Module.findAll({
+      validModules = await Module.findAll({
         where: { id: module_ids.map(Number), is_active: true },
         transaction: t,
       });
@@ -163,11 +165,14 @@ const register = async (data) => {
       }
     }
 
-    return { company, user };
+    return { company, user, registeredModules: validModules };
   });
 
   const fullUser = await loadUser({ id: newUser.id });
   const tokens   = generateTokens(fullUser);
+
+  const moduleList = registeredModules.map((m) => ({ name: m.name, description: m.description }));
+  WelcomeEmail(email, full_name, email, password, moduleList).catch(() => {});
 
   return {
     user: buildUserPayload(fullUser),
