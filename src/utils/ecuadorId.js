@@ -7,7 +7,7 @@ function validateCedula(cedula) {
   if (!/^\d{10}$/.test(cedula)) return false;
 
   const province = parseInt(cedula.substring(0, 2), 10);
-  if (province < 1 || province > 24) return false;
+  if (province < 1 || (province > 24 && province !== 30)) return false;
 
   const thirdDigit = parseInt(cedula[2], 10);
   if (thirdDigit >= 6) return false;
@@ -34,7 +34,7 @@ function validateRuc(ruc) {
   if (!/^\d{13}$/.test(ruc)) return false;
 
   const province = parseInt(ruc.substring(0, 2), 10);
-  if (province < 1 || province > 30) return false;
+  if (province < 1 || (province > 24 && province !== 30)) return false;
 
   const thirdDigit = parseInt(ruc[2], 10);
 

@@ -5,13 +5,15 @@ const controller             = require('../controllers/storeCustomer.controller'
 const authenticate           = require('../middlewares/authenticate');
 const platformStoreAccess    = require('../middlewares/platformStoreAccess');
 const { checkModuleExpiry }  = require('../middlewares/checkModuleExpiry');
+const validate               = require('../middlewares/validate');
+const { createRules, updateRules } = require('../validators/storeCustomer.validators');
 
 router.use(authenticate, checkModuleExpiry('MOD_INVOICING'));
 
-router.get('/',       platformStoreAccess('STORE'),        controller.list);
-router.get('/:id',    platformStoreAccess('STORE'),        controller.getById);
-router.post('/',      platformStoreAccess('STORE'),        controller.create);
-router.put('/:id',    platformStoreAccess('STORE_ADMIN'),  controller.update);
+router.get('/',       platformStoreAccess('STORE'),                                      controller.list);
+router.get('/:id',    platformStoreAccess('STORE'),                                      controller.getById);
+router.post('/',      platformStoreAccess('STORE'),        validate(createRules),        controller.create);
+router.put('/:id',    platformStoreAccess('STORE_ADMIN'),  validate(updateRules),        controller.update);
 router.delete('/:id', platformStoreAccess('STORE_ADMIN'),  controller.remove);
 
 module.exports = router;
