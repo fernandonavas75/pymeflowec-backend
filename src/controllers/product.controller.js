@@ -35,6 +35,12 @@ const update = async (req, res, next) => {
 const adjustStock = async (req, res, next) => {
   try {
     const { quantity, movement_type, notes } = req.body;
+    if (movement_type === 'ADJUSTMENT' && req.user.role?.name === 'STORE_WAREHOUSE') {
+      return res.status(403).json({
+        success: false,
+        message: 'El rol de bodeguero solo puede registrar entradas y salidas. Los ajustes de inventario requieren permisos de administrador.',
+      });
+    }
     const data = await service.adjust(
       req.params.id, quantity, movement_type, notes,
       req.user.company_id, req.user.id

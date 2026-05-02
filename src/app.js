@@ -7,6 +7,8 @@ const helmet       = require('helmet');
 const compression  = require('compression');
 const rateLimit    = require('express-rate-limit');
 const { RedisStore } = require('rate-limit-redis');
+const { ipKeyGenerator } = require('express-rate-limit');
+const jwt          = require('jsonwebtoken');
 const swaggerUi    = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
@@ -53,9 +55,22 @@ const redisStoreOptions = (prefix) =>
     ? { store: new RedisStore({ sendCommand: (...args) => redisClient.call(...args), prefix }) }
     : {};
 
+// Extrae user ID del JWT sin hacer DB lookup — O(1), seguro para usar en keyGenerator
+const extractUserIdFromToken = (req) => {
+  try {
+    const auth = req.headers.authorization;
+    if (auth?.startsWith('Bearer ')) {
+      const decoded = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
+      return `user:${decoded.id}`;
+    }
+  } catch (_) { /* token inválido o expirado → caer a IP */ }
+  return `ip:${ipKeyGenerator(req)}`;
+};
+
 const globalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-  max:      parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  windowMs:     parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+  max:          parseInt(process.env.RATE_LIMIT_MAX, 10) || 300,
+  keyGenerator: extractUserIdFromToken,
   standardHeaders: true,
   legacyHeaders:   false,
   message: { success: false, message: 'Demasiadas solicitudes. Intenta en 15 minutos.' },
