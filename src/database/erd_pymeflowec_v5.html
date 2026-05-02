@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>ERD — PymeFlowEc · Schema v5</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg:           #f4f6f9;
+    --surface:      #ffffff;
+    --border:       #d1dbe8;
+    --header-bg:    #1f3864;
+    --text:         #1a2537;
+    --text-muted:   #5a6a82;
+    --pk:           #7d4e00;
+    --pk-bg:        #fff8e1;
+    --pk-border:    #f0c040;
+    --fk:           #005f55;
+    --fk-bg:        #e6f5f3;
+    --fk-border:    #00b0a0;
+    --field-hover:  #f0f4fb;
+    --dom-platform: #2e75b6;
+    --dom-tenant:   #7030a0;
+    --dom-billing:  #c00000;
+    --dom-inventory:#375623;
+    --dom-logs:     #833c00;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--header-bg);
+    padding: 18px 36px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 3px solid #2e75b6;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  .header-left { display: flex; flex-direction: column; gap: 2px; }
+  header h1 { font-size: .95rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #fff; }
+  header .subtitle { font-size: .72rem; color: #a8bcd4; font-family: 'JetBrains Mono', monospace; letter-spacing: .04em; }
+  .header-meta { display: flex; gap: 24px; align-items: center; }
+  .meta-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .meta-value { font-size: .88rem; font-weight: 600; color: #fff; font-family: 'JetBrains Mono', monospace; }
+  .meta-label { font-size: .62rem; color: #7fa3c7; text-transform: uppercase; letter-spacing: .06em; }
+  .meta-divider { width: 1px; height: 32px; background: rgba(255,255,255,.15); }
+
+  /* ── Canvas ── */
+  #canvas-wrap { position: relative; overflow: auto; width: 100%; padding: 40px; min-height: calc(100vh - 70px); }
+  svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+  /* ── Grid 5 cols ── */
+  #grid { display: grid; grid-template-columns: repeat(5, 230px); gap: 28px; width: max-content; position: relative; z-index: 1; }
+
+  /* ── Table card ── */
+  .table-card {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 6px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 2px 12px rgba(0,0,0,.04);
+    transition: box-shadow .2s, transform .2s, border-color .2s;
+    position: relative;
+  }
+  .table-card:hover { box-shadow: 0 4px 20px rgba(46,117,182,.18), 0 0 0 2px #2e75b6; transform: translateY(-2px); border-color: #2e75b6; z-index: 10; }
+  .table-card.dom-platform  { border-top: 3px solid var(--dom-platform); }
+  .table-card.dom-tenant    { border-top: 3px solid var(--dom-tenant); }
+  .table-card.dom-billing   { border-top: 3px solid var(--dom-billing); }
+  .table-card.dom-inventory { border-top: 3px solid var(--dom-inventory); }
+  .table-card.dom-logs      { border-top: 3px solid var(--dom-logs); }
+
+  .card-header { background: var(--header-bg); padding: 9px 12px 8px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .card-header h2 { font-family: 'JetBrains Mono', monospace; font-size: .78rem; font-weight: 700; color: #fff; letter-spacing: .03em; flex: 1; }
+  .domain-badge { font-size: .55rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .badge-platform  { background: rgba(46,117,182,.35);  color: #9cc4e8; }
+  .badge-tenant    { background: rgba(112,48,160,.35);  color: #c9a0e8; }
+  .badge-billing   { background: rgba(192,0,0,.30);     color: #f09090; }
+  .badge-inventory { background: rgba(55,86,35,.35);    color: #a0c880; }
+  .badge-logs      { background: rgba(131,60,0,.35);    color: #e8b880; }
+
+  /* ── Fields ── */
+  .fields { padding: 4px 0 6px; }
+  .field { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 0; font-family: 'JetBrains Mono', monospace; font-size: .68rem; border-left: 3px solid transparent; transition: background .12s; cursor: default; }
+  .field:hover { background: var(--field-hover); }
+  .field.pk { background: var(--pk-bg); border-left-color: var(--pk-border); }
+  .field.fk { background: var(--fk-bg); border-left-color: var(--fk-border); }
+  .key-indicator { width: 28px; text-align: center; flex-shrink: 0; font-size: .62rem; font-weight: 700; letter-spacing: .04em; }
+  .pk .key-indicator { color: var(--pk); }
+  .fk .key-indicator { color: var(--fk); }
+  .field:not(.pk):not(.fk) .key-indicator { color: transparent; }
+  .field-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk .field-name  { color: var(--pk); font-weight: 700; }
+  .fk .field-name  { color: var(--fk); font-weight: 500; }
+  .field:not(.pk):not(.fk) .field-name { color: var(--text); }
+  .field-type { color: var(--text-muted); font-size: .61rem; white-space: nowrap; flex-shrink: 0; padding-right: 8px; }
+  .field-divider { height: 1px; background: var(--border); margin: 3px 10px; opacity: .5; }
+  .nullable::after { content: '?'; font-size: .54rem; color: var(--text-muted); margin-left: 2px; vertical-align: super; }
+
+  /* ── Legend ── */
+  #legend { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 6px; padding: 14px 18px; box-shadow: 0 2px 12px rgba(0,0,0,.1); font-size: .7rem; min-width: 200px; z-index: 200; }
+  #legend h3 { font-size: .65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .leg-section { margin-bottom: 10px; }
+  .leg-section:last-child { margin-bottom: 0; }
+  .leg-section-title { font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 5px; }
+  .leg { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: var(--text); }
+  .leg:last-child { margin-bottom: 0; }
+  .leg-line { width: 24px; height: 2px; border-radius: 1px; }
+  .leg-key  { width: 24px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: .65rem; font-weight: 700; }
+
+  /* ── Domain guide ── */
+  #domain-guide { position: fixed; top: 90px; right: 24px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 6px; padding: 12px 16px; box-shadow: 0 2px 12px rgba(0,0,0,.1); font-size: .68rem; z-index: 200; }
+  #domain-guide h3 { font-size: .63rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+  .dom { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .dom:last-child { margin-bottom: 0; }
+  .dom-bar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+  .dom-label { color: var(--text); font-size: .67rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Diagrama Entidad-Relación — PymeFlowEc</h1>
+    <span class="subtitle">Sistema ERP Multi-tenant · PostgreSQL 15+ · Schema v5</span>
+  </div>
+  <div class="header-meta">
+    <div class="meta-item"><span class="meta-value">15</span><span class="meta-label">Tablas</span></div>
+    <div class="meta-divider"></div>
+    <div class="meta-item"><span class="meta-value">27</span><span class="meta-label">Relaciones</span></div>
+    <div class="meta-divider"></div>
+    <div class="meta-item"><span class="meta-value">5</span><span class="meta-label">Dominios</span></div>
+    <div class="meta-divider"></div>
+    <div class="meta-item"><span class="meta-value">v5</span><span class="meta-label">Versión</span></div>
+    <div class="meta-divider"></div>
+    <div class="meta-item"><span class="meta-value">2026-05-02</span><span class="meta-label">Fecha</span></div>
+  </div>
+</header>
+
+<div id="canvas-wrap">
+  <svg id="arrows"></svg>
+  <div id="grid">
+
+    <!-- ROW 1: Plataforma + Companies -->
+    <div class="table-card dom-platform" id="t-roles">
+      <div class="card-header"><h2>roles</h2><span class="domain-badge badge-platform">Plataforma</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">name</span><span class="field-type">VARCHAR(50) UQ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">scope</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">description</span><span class="field-type">VARCHAR(255)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-platform" id="t-modules">
+      <div class="card-header"><h2>modules</h2><span class="domain-badge badge-platform">Plataforma</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">code</span><span class="field-type">VARCHAR(50) UQ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">name</span><span class="field-type">VARCHAR(100)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">description</span><span class="field-type">VARCHAR(255)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">is_active</span><span class="field-type">BOOLEAN</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-tenant" id="t-companies">
+      <div class="card-header"><h2>companies</h2><span class="domain-badge badge-tenant">Tenant</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">name</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">business_name</span><span class="field-type">VARCHAR(200)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">ruc</span><span class="field-type">VARCHAR(13) UQ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">email</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">phone</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">address</span><span class="field-type">VARCHAR(255)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">status</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">deleted_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-platform" id="t-users">
+      <div class="card-header"><h2>users</h2><span class="domain-badge badge-platform">Plataforma</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">role_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">full_name</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">email</span><span class="field-type">VARCHAR(150) UQ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">password_hash</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">reset_token</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">reset_token_expires</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">status</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">deleted_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div></div><!-- spacer -->
+
+    <!-- ROW 2: Módulos + Configuración tenant -->
+    <div class="table-card dom-platform" id="t-company_module_requests">
+      <div class="card-header"><h2>company_module_requests</h2><span class="domain-badge badge-platform">Plataforma</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">module_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">requested_by</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">reviewed_by</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">status</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">reviewed_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">expires_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">comments</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-platform" id="t-company_modules">
+      <div class="card-header"><h2>company_modules</h2><span class="domain-badge badge-platform">Plataforma</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">module_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">approved_by</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">is_active</span><span class="field-type">BOOLEAN</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">approved_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">expires_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-tenant" id="t-suppliers">
+      <div class="card-header"><h2>suppliers</h2><span class="domain-badge badge-tenant">Tenant</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">name</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">ruc</span><span class="field-type">VARCHAR(13)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">phone</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">email</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">address</span><span class="field-type">VARCHAR(255)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">deleted_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-tenant" id="t-store_customers">
+      <div class="card-header"><h2>store_customers</h2><span class="domain-badge badge-tenant">Tenant</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">customer_type</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">document_number</span><span class="field-type">VARCHAR(13)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">full_name</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">email</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">phone</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">address</span><span class="field-type">VARCHAR(255)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">deleted_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-tenant" id="t-tax_rates">
+      <div class="card-header"><h2>tax_rates</h2><span class="domain-badge badge-tenant">Tenant</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">tax_name</span><span class="field-type">VARCHAR(100)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">percentage</span><span class="field-type">NUMERIC(5,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">is_active</span><span class="field-type">BOOLEAN</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">valid_from</span><span class="field-type">DATE</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">valid_to</span><span class="field-type">DATE</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Productos, Facturación, Inventario -->
+    <div class="table-card dom-tenant" id="t-products">
+      <div class="card-header"><h2>products</h2><span class="domain-badge badge-tenant">Tenant</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">supplier_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">tax_rate_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">sku</span><span class="field-type">VARCHAR(50) UQ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">name</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">description</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">purchase_price</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">sale_price</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">stock</span><span class="field-type">INTEGER ≥ 0</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">min_stock</span><span class="field-type">INTEGER ≥ 0</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">status</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">deleted_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-billing" id="t-invoices">
+      <div class="card-header"><h2>invoices</h2><span class="domain-badge badge-billing">Facturación</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">customer_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">created_by</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">invoice_number</span><span class="field-type">VARCHAR(20) UQ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">issue_date</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">subtotal</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">tax_amount</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">total</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">status</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">updated_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">deleted_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-billing" id="t-invoice_details">
+      <div class="card-header"><h2>invoice_details</h2><span class="domain-badge badge-billing">Facturación</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">invoice_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">product_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">tax_rate_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">product_name</span><span class="field-type">VARCHAR(150)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">description</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">quantity</span><span class="field-type">INTEGER &gt; 0</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">unit_price</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">tax_percentage</span><span class="field-type">NUMERIC(5,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">tax_amount</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">line_subtotal</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">line_total</span><span class="field-type">NUMERIC(12,2)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-inventory" id="t-inventory_movements">
+      <div class="card-header"><h2>inventory_movements</h2><span class="domain-badge badge-inventory">Inventario</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">product_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name">created_by</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">movement_type</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">quantity</span><span class="field-type">INTEGER &gt; 0</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">reference_type</span><span class="field-type">VARCHAR(20)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">reference_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">notes</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div></div><!-- spacer -->
+
+    <!-- ROW 4: Logs -->
+    <div></div><div></div>
+
+    <div class="table-card dom-logs" id="t-audit_logs">
+      <div class="card-header"><h2>audit_logs</h2><span class="domain-badge badge-logs">Auditoría</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">user_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">action</span><span class="field-type">VARCHAR(50)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">table_name</span><span class="field-type">VARCHAR(100)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">record_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">old_values</span><span class="field-type">JSONB</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">new_values</span><span class="field-type">JSONB</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">ip_address</span><span class="field-type">VARCHAR(45)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">user_agent</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div class="table-card dom-logs" id="t-system_logs">
+      <div class="card-header"><h2>system_logs</h2><span class="domain-badge badge-logs">Sistema</span></div>
+      <div class="fields">
+        <div class="field pk"><span class="key-indicator">PK</span><span class="field-name">id</span><span class="field-type">BIGSERIAL</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">company_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field fk"><span class="key-indicator">FK</span><span class="field-name nullable">user_id</span><span class="field-type">BIGINT</span></div>
+        <div class="field-divider"></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">level</span><span class="field-type">VARCHAR(10)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">source</span><span class="field-type">VARCHAR(50)</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">message</span><span class="field-type">TEXT</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name nullable">details</span><span class="field-type">JSONB</span></div>
+        <div class="field"><span class="key-indicator"></span><span class="field-name">created_at</span><span class="field-type">TIMESTAMPTZ</span></div>
+      </div>
+    </div>
+
+    <div></div><!-- spacer -->
+
+  </div><!-- /grid -->
+</div><!-- /canvas-wrap -->
+
+<!-- Domain guide -->
+<div id="domain-guide">
+  <h3>Dominios</h3>
+  <div class="dom"><div class="dom-bar" style="background:var(--dom-platform)"></div><span class="dom-label">Plataforma / Identidad</span></div>
+  <div class="dom"><div class="dom-bar" style="background:var(--dom-tenant)"></div><span class="dom-label">Tenant / Tienda</span></div>
+  <div class="dom"><div class="dom-bar" style="background:var(--dom-billing)"></div><span class="dom-label">Facturación</span></div>
+  <div class="dom"><div class="dom-bar" style="background:var(--dom-inventory)"></div><span class="dom-label">Inventario</span></div>
+  <div class="dom"><div class="dom-bar" style="background:var(--dom-logs)"></div><span class="dom-label">Logs &amp; Auditoría</span></div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <h3>Leyenda</h3>
+  <div class="leg-section">
+    <div class="leg-section-title">Campos</div>
+    <div class="leg"><span class="leg-key" style="color:#7d4e00">PK</span><span>Clave primaria</span></div>
+    <div class="leg"><span class="leg-key" style="color:#005f55">FK</span><span>Clave foránea</span></div>
+    <div class="leg"><span class="leg-key" style="color:#5a6a82;font-size:.6rem">UQ</span><span>Restricción UNIQUE</span></div>
+    <div class="leg"><span class="leg-key" style="color:#5a6a82;font-size:.72rem">?</span><span>Campo nullable</span></div>
+  </div>
+  <div class="leg-section">
+    <div class="leg-section-title">Relaciones (1:N)</div>
+    <div class="leg"><span class="leg-line" style="background:var(--dom-platform)"></span><span>plataforma</span></div>
+    <div class="leg"><span class="leg-line" style="background:var(--dom-tenant)"></span><span>tenant / tienda</span></div>
+    <div class="leg"><span class="leg-line" style="background:var(--dom-billing)"></span><span>facturación</span></div>
+    <div class="leg"><span class="leg-line" style="background:var(--dom-inventory)"></span><span>inventario</span></div>
+    <div class="leg"><span class="leg-line" style="background:var(--dom-logs)"></span><span>auditoría / logs</span></div>
+  </div>
+</div>
+
+<script>
+const relations = [
+  ['t-roles',                   't-users',                   '#2e75b6'],
+  ['t-companies',               't-users',                   '#2e75b6'],
+  ['t-companies',               't-company_module_requests', '#2e75b6'],
+  ['t-companies',               't-company_modules',         '#2e75b6'],
+  ['t-companies',               't-suppliers',               '#7030a0'],
+  ['t-companies',               't-store_customers',         '#7030a0'],
+  ['t-companies',               't-tax_rates',               '#7030a0'],
+  ['t-companies',               't-products',                '#7030a0'],
+  ['t-companies',               't-invoices',                '#c00000'],
+  ['t-companies',               't-inventory_movements',     '#375623'],
+  ['t-companies',               't-audit_logs',              '#833c00'],
+  ['t-companies',               't-system_logs',             '#833c00'],
+  ['t-modules',                 't-company_module_requests', '#2e75b6'],
+  ['t-modules',                 't-company_modules',         '#2e75b6'],
+  ['t-users',                   't-company_module_requests', '#2e75b6'],
+  ['t-users',                   't-company_modules',         '#2e75b6'],
+  ['t-users',                   't-invoices',                '#c00000'],
+  ['t-users',                   't-inventory_movements',     '#375623'],
+  ['t-users',                   't-audit_logs',              '#833c00'],
+  ['t-users',                   't-system_logs',             '#833c00'],
+  ['t-suppliers',               't-products',                '#7030a0'],
+  ['t-tax_rates',               't-products',                '#7030a0'],
+  ['t-tax_rates',               't-invoice_details',         '#c00000'],
+  ['t-store_customers',         't-invoices',                '#c00000'],
+  ['t-invoices',                't-invoice_details',         '#c00000'],
+  ['t-products',                't-invoice_details',         '#c00000'],
+  ['t-products',                't-inventory_movements',     '#375623'],
+];
+
+const markerColors = {
+  '#2e75b6': 'blue', '#7030a0': 'purple',
+  '#c00000': 'red',  '#375623': 'green', '#833c00': 'brown',
+};
+
+function getCardRect(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const wrap = document.getElementById('canvas-wrap');
+  const wr = wrap.getBoundingClientRect();
+  const r  = el.getBoundingClientRect();
+  return {
+    x:      r.left - wr.left + wrap.scrollLeft + r.width / 2,
+    y:      r.top  - wr.top  + wrap.scrollTop  + r.height / 2,
+    left:   r.left - wr.left + wrap.scrollLeft,
+    right:  r.left - wr.left + wrap.scrollLeft + r.width,
+    top:    r.top  - wr.top  + wrap.scrollTop,
+    bottom: r.top  - wr.top  + wrap.scrollTop  + r.height,
+  };
+}
+
+function drawArrows() {
+  const svg  = document.getElementById('arrows');
+  const grid = document.getElementById('grid');
+  svg.setAttribute('width',  grid.scrollWidth  + 80);
+  svg.setAttribute('height', grid.scrollHeight + 80);
+  svg.innerHTML = '';
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  [...new Set(relations.map(r => r[2]))].forEach(color => {
+    const key = markerColors[color] || 'def';
+    const m = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    m.setAttribute('id', `arrow-${key}`);
+    m.setAttribute('markerWidth', '8'); m.setAttribute('markerHeight', '6');
+    m.setAttribute('refX', '7'); m.setAttribute('refY', '3');
+    m.setAttribute('orient', 'auto');
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    p.setAttribute('points', '0 0, 8 3, 0 6');
+    p.setAttribute('fill', color); p.setAttribute('opacity', '0.7');
+    m.appendChild(p); defs.appendChild(m);
+  });
+  svg.appendChild(defs);
+
+  relations.forEach(([fromId, toId, color]) => {
+    const a = getCardRect(fromId);
+    const b = getCardRect(toId);
+    if (!a || !b) return;
+    const key = markerColors[color] || 'def';
+    const dx = b.x - a.x, dy = b.y - a.y;
+    let x1, y1, x2, y2;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx > 0) { x1 = a.right; y1 = a.y; x2 = b.left;  y2 = b.y; }
+      else         { x1 = a.left;  y1 = a.y; x2 = b.right; y2 = b.y; }
+    } else {
+      if (dy > 0) { x1 = a.x; y1 = a.bottom; x2 = b.x; y2 = b.top; }
+      else         { x1 = a.x; y1 = a.top;    x2 = b.x; y2 = b.bottom; }
+    }
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    const d = Math.abs(dx) >= Math.abs(dy)
+      ? `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`
+      : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d); path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.5'); path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-opacity', '0.5');
+    path.setAttribute('marker-end', `url(#arrow-${key})`);
+
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', mx); txt.setAttribute('y', my - 4);
+    txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '9');
+    txt.setAttribute('font-family', 'Inter, sans-serif');
+    txt.setAttribute('fill', color); txt.setAttribute('opacity', '0.65');
+    txt.textContent = '1:N';
+
+    svg.appendChild(path); svg.appendChild(txt);
+  });
+}
+
+let raf;
+window.addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawArrows); });
+window.addEventListener('load', () => setTimeout(drawArrows, 100));
+</script>
+</body>
+</html>
