@@ -125,19 +125,27 @@ app.get('/health', (req, res) => {
 });
 */
 // ── RUTAS ─────────────────────────────────────────────────────────
-app.use('/api/auth',            require('./routes/auth.routes')(loginLimiter));
-app.use('/api/companies',       require('./routes/company.routes'));
-app.use('/api/roles',           require('./routes/role.routes'));
-app.use('/api/users',           require('./routes/user.routes'));
-app.use('/api/customers',       require('./routes/storeCustomer.routes'));
-app.use('/api/suppliers',       require('./routes/supplier.routes'));
-app.use('/api/products',        require('./routes/product.routes'));
-app.use('/api/tax-rates',       require('./routes/taxRate.routes'));
-app.use('/api/invoices',        require('./routes/invoice.routes'));
-app.use('/api/platform/modules', require('./routes/module.routes'));
-app.use('/api/platform',         require('./routes/platform.routes'));
-app.use('/api/module-requests',  require('./routes/moduleRequest.routes'));
-app.use('/api/audit-logs',       require('./routes/auditLog.routes'));
+app.use('/api/auth',               require('./routes/auth.routes')(loginLimiter));
+app.use('/api/companies',          require('./routes/company.routes'));
+app.use('/api/roles',              require('./routes/role.routes'));
+app.use('/api/users',              require('./routes/user.routes'));
+app.use('/api/customers',          require('./routes/storeCustomer.routes'));
+app.use('/api/suppliers',          require('./routes/supplier.routes'));
+app.use('/api/products',           require('./routes/product.routes'));
+app.use('/api/tax-rates',          require('./routes/taxRate.routes'));
+app.use('/api/invoices',           require('./routes/invoice.routes'));
+app.use('/api/invoice-payments',   require('./routes/invoicePayment.routes'));
+app.use('/api/inventory-movements', require('./routes/inventoryMovement.routes'));
+app.use('/api/expense-categories', require('./routes/expenseCategory.routes'));
+app.use('/api/expenses',           require('./routes/expense.routes'));
+app.use('/api/expense-payments',   require('./routes/expensePayment.routes'));
+app.use('/api/expense-budgets',    require('./routes/expenseBudget.routes'));
+app.use('/api/expense-recurring',  require('./routes/expenseRecurring.routes'));
+app.use('/api/petty-cash',         require('./routes/pettyCash.routes'));
+app.use('/api/platform/modules',   require('./routes/module.routes'));
+app.use('/api/platform',           require('./routes/platform.routes'));
+app.use('/api/module-requests',    require('./routes/moduleRequest.routes'));
+app.use('/api/audit-logs',         require('./routes/auditLog.routes'));
 
 // ── 404 ───────────────────────────────────────────────────────────
 app.use((req, res) => {

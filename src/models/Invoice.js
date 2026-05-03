@@ -31,6 +31,12 @@ const Invoice = sequelize.define('Invoice', {
     defaultValue: 'ISSUED',
     validate: { isIn: [['ISSUED', 'CANCELLED']] },
   },
+  payment_status: {
+    type:         DataTypes.STRING(20),
+    allowNull:    false,
+    defaultValue: 'PENDIENTE',
+    validate: { isIn: [['PENDIENTE', 'PARCIAL', 'COBRADO', 'ANULADO']] },
+  },
 }, {
   tableName:  'invoices',
   schema:     'erp',
