@@ -5,6 +5,116 @@ const authenticate = require('../middlewares/authenticate');
 const validate     = require('../middlewares/validate');
 const { loginRules, refreshRules, registerRules, changePasswordRules } = require('../validators/auth.validators');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Autenticación y gestión de sesión
+ */
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Iniciar sesión
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:    { type: string, format: email }
+ *               password: { type: string }
+ *     responses:
+ *       200:
+ *         description: Tokens de acceso y refresh
+ *       401:
+ *         description: Credenciales inválidas
+ */
+
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Registrar nueva empresa y usuario administrador
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [company_name, ruc, email, password]
+ *             properties:
+ *               company_name: { type: string }
+ *               ruc:          { type: string }
+ *               email:        { type: string, format: email }
+ *               password:     { type: string }
+ *     responses:
+ *       201:
+ *         description: Empresa y usuario creados
+ */
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Renovar access token usando refresh token
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh_token]
+ *             properties:
+ *               refresh_token: { type: string }
+ *     responses:
+ *       200:
+ *         description: Nuevo access token
+ *       401:
+ *         description: Refresh token inválido o expirado
+ */
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Obtener perfil del usuario autenticado
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Datos del usuario actual
+ */
+
+/**
+ * @swagger
+ * /auth/change-password:
+ *   patch:
+ *     summary: Cambiar contraseña del usuario autenticado
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [current_password, new_password]
+ *             properties:
+ *               current_password: { type: string }
+ *               new_password:     { type: string }
+ *     responses:
+ *       200:
+ *         description: Contraseña actualizada
+ */
+
 module.exports = (loginLimiter) => {
   const router = require('express').Router();
 

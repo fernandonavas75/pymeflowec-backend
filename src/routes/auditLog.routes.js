@@ -8,9 +8,16 @@ const platformStoreAccess   = require('../middlewares/platformStoreAccess');
 
 /**
  * @swagger
+ * tags:
+ *   name: AuditLogs
+ *   description: Registros de auditoría del sistema
+ */
+
+/**
+ * @swagger
  * /audit-logs:
  *   get:
- *     summary: Lista registros de auditoría (solo plataforma)
+ *     summary: Lista registros de auditoría (solo PLATFORM)
  *     tags: [AuditLogs]
  *     parameters:
  *       - in: query
@@ -37,6 +44,9 @@ const platformStoreAccess   = require('../middlewares/platformStoreAccess');
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 50 }
+ *     responses:
+ *       200:
+ *         description: Lista paginada de registros de auditoría
  */
 router.get('/', authenticate, requirePlatform, controller.list);
 
@@ -73,6 +83,9 @@ router.get('/', authenticate, requirePlatform, controller.list);
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 40 }
+ *     responses:
+ *       200:
+ *         description: Lista paginada de actividad de la empresa
  */
 router.get('/my-company', authenticate, platformStoreAccess('STORE_ADMIN'), controller.listMyCompany);
 
