@@ -5,7 +5,7 @@ const controller          = require('../controllers/expenseBudget.controller');
 const authenticate        = require('../middlewares/authenticate');
 const platformStoreAccess = require('../middlewares/platformStoreAccess');
 const { checkModuleExpiry } = require('../middlewares/checkModuleExpiry');
-const { validate }        = require('../middlewares/validate');
+const validate            = require('../middlewares/validate');
 const { createRules, updateRules } = require('../validators/expenseBudget.validators');
 
 router.use(authenticate, checkModuleExpiry('MOD_FINANCE'));
