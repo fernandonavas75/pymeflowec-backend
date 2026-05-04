@@ -12,6 +12,7 @@ const jwt          = require('jsonwebtoken');
 const swaggerUi    = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
+const path             = require('path');
 const logger           = require('./utils/logger');
 const redisClient      = require('./config/redis');
 const { errorHandler } = require('./middlewares/errorHandler');
@@ -87,6 +88,13 @@ const loginLimiter = rateLimit({
   ...redisStoreOptions('rl:login:'),
 });
 
+const swaggerServers = [
+  { url: 'http://localhost:8080/api', description: 'Desarrollo local' },
+];
+if (process.env.API_BASE_URL) {
+  swaggerServers.unshift({ url: `${process.env.API_BASE_URL}/api`, description: 'Producción' });
+}
+
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
@@ -95,9 +103,7 @@ const swaggerSpec = swaggerJsdoc({
       version: '2.0.0',
       description: 'API REST del sistema ERP Multi-tenant para PYMEs — Schema v3',
     },
-    servers: [
-      { url: 'http://localhost:8080/api', description: 'Desarrollo local' },
-    ],
+    servers: swaggerServers,
     components: {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
@@ -105,7 +111,7 @@ const swaggerSpec = swaggerJsdoc({
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: ['./src/routes/*.js'],
+  apis: [path.join(__dirname, 'routes/*.js')],
 });
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

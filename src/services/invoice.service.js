@@ -1,11 +1,35 @@
 'use strict';
 
+const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const {
-  Invoice, InvoiceDetail, Product, StoreCustomer, User,
+  Invoice, InvoiceDetail, InvoicePayment, Product, StoreCustomer, User,
   TaxRate, InventoryMovement,
 } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
+
+// Calcula amount_paid y amount_pending para un conjunto de facturas (evita N+1)
+const _attachAmounts = async (invoiceRows, companyId) => {
+  const ids = invoiceRows.map(i => i.id ?? i.get('id'));
+  if (ids.length === 0) return invoiceRows.map(i => ({ ...(i.toJSON ? i.toJSON() : i), amount_paid: 0, amount_pending: parseFloat(i.total) }));
+
+  const payments = await InvoicePayment.findAll({
+    where: { invoice_id: { [Op.in]: ids }, company_id: companyId, status: 'COBRADO' },
+    attributes: ['invoice_id', 'amount'],
+  });
+
+  const paidMap = {};
+  for (const p of payments) {
+    paidMap[p.invoice_id] = (paidMap[p.invoice_id] || 0) + parseFloat(p.amount);
+  }
+
+  return invoiceRows.map(inv => {
+    const plain        = inv.toJSON ? inv.toJSON() : { ...inv };
+    const amount_paid  = parseFloat((paidMap[plain.id] || 0).toFixed(2));
+    const amount_pending = parseFloat((parseFloat(plain.total) - amount_paid).toFixed(2));
+    return { ...plain, amount_paid, amount_pending };
+  });
+};
 
 const invoiceInclude = [
   { model: StoreCustomer, as: 'customer', attributes: ['id', 'full_name', 'document_number', 'customer_type'] },
@@ -31,13 +55,15 @@ const generateInvoiceNumber = async (companyId, transaction) => {
 };
 
 const list = async (companyId, { limit, offset } = {}) => {
-  return Invoice.findAndCountAll({
+  const result = await Invoice.findAndCountAll({
     where:   { company_id: companyId },
     include: invoiceInclude,
     order:   [['created_at', 'DESC']],
     limit,
     offset,
   });
+  const rows = await _attachAmounts(result.rows, companyId);
+  return { count: result.count, rows };
 };
 
 const getById = async (id, companyId) => {
@@ -53,7 +79,8 @@ const getById = async (id, companyId) => {
     ],
   });
   if (!invoice) throw new AppError('Factura no encontrada.', 404);
-  return invoice;
+  const [enriched] = await _attachAmounts([invoice], companyId);
+  return enriched;
 };
 
 // Creación directa con líneas de detalle
