@@ -1,7 +1,7 @@
 'use strict';
 
 const DEFAULT_LIMIT = 20;
-const MAX_LIMIT     = 100;
+const MAX_LIMIT     = 500;
 
 /**
  * Parsea los query params de paginación y devuelve { limit, offset, page }.
