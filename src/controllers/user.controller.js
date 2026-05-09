@@ -56,8 +56,18 @@ const lock = async (req, res, next) => {
 
 const changePassword = async (req, res, next) => {
   try {
+    const targetId     = parseInt(req.params.id, 10);
+    const isOwnAccount = req.user.id === targetId;
+    const isAdmin      = req.user.role.name === 'STORE_ADMIN';
+
+    if (!isOwnAccount && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'No tienes permiso para cambiar la contraseña de otro usuario.' });
+    }
+
     const { current_password, new_password } = req.body;
-    await service.changePassword(req.params.id, current_password, new_password, req.user.company_id);
+    // Admin cambiando cuenta ajena: omite verificación de contraseña actual
+    const skipCurrentCheck = isAdmin && !isOwnAccount;
+    await service.changePassword(targetId, current_password, new_password, req.user.company_id, skipCurrentCheck);
     res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente.' });
   } catch (err) { next(err); }
 };

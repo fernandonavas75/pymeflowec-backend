@@ -3,20 +3,17 @@
 const { body } = require('express-validator');
 
 const createRules = [
-  body('name').trim().notEmpty().withMessage('El nombre es requerido.'),
-  body('percentage').isFloat({ min: 0, max: 1 }).withMessage('El porcentaje debe estar entre 0 y 1 (ej: 0.15).'),
-  body('effective_from').isDate().withMessage('Fecha de inicio de vigencia inválida.'),
-  body('effective_until').optional({ nullable: true }).isDate().withMessage('Fecha de fin de vigencia inválida.'),
-  body('sri_code').optional().trim(),
-  body('sri_percentage_code').optional().trim(),
-  body('description').optional().trim(),
+  body('tax_name').trim().notEmpty().withMessage('El nombre es requerido.'),
+  body('percentage').isFloat({ min: 0, max: 100 }).withMessage('El porcentaje debe estar entre 0 y 100 (ej: 15 para 15%).'),
+  body('valid_from').optional({ nullable: true }).isDate().withMessage('Fecha de inicio de vigencia inválida.'),
+  body('valid_to').optional({ nullable: true }).isDate().withMessage('Fecha de fin de vigencia inválida.'),
 ];
 
 const updateRules = [
-  body('name').optional().trim().notEmpty().withMessage('El nombre no puede estar vacío.'),
-  body('percentage').optional().isFloat({ min: 0, max: 1 }).withMessage('El porcentaje debe estar entre 0 y 1.'),
-  body('effective_from').optional().isDate().withMessage('Fecha de inicio de vigencia inválida.'),
-  body('effective_until').optional({ nullable: true }).isDate().withMessage('Fecha de fin de vigencia inválida.'),
+  body('tax_name').optional().trim().notEmpty().withMessage('El nombre no puede estar vacío.'),
+  body('percentage').optional().isFloat({ min: 0, max: 100 }).withMessage('El porcentaje debe estar entre 0 y 100.'),
+  body('valid_from').optional({ nullable: true }).isDate().withMessage('Fecha de inicio de vigencia inválida.'),
+  body('valid_to').optional({ nullable: true }).isDate().withMessage('Fecha de fin de vigencia inválida.'),
   body('is_active').optional().isBoolean(),
 ];
 

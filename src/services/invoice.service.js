@@ -117,7 +117,12 @@ const create = async (data, companyId, userId) => {
 
       const qty         = parseInt(item.quantity, 10);
       const unitPrice   = parseFloat(item.unit_price ?? product.sale_price);
-      const lineSub     = parseFloat((unitPrice * qty).toFixed(2));
+      const discount    = parseFloat(item.discount ?? 0);
+      const lineGross   = parseFloat((unitPrice * qty).toFixed(2));
+      if (discount > lineGross) {
+        throw new AppError(`El descuento supera el valor de la línea para "${product.name}".`, 400);
+      }
+      const lineSub     = parseFloat((lineGross - discount).toFixed(2));
       const lineTax     = parseFloat((lineSub * taxPct / 100).toFixed(2));
       const lineTotal   = parseFloat((lineSub + lineTax).toFixed(2));
 
@@ -131,6 +136,7 @@ const create = async (data, companyId, userId) => {
         product_name:   product.name,
         quantity:       qty,
         unit_price:     unitPrice,
+        discount,
         tax_percentage: taxPct,
         tax_amount:     lineTax,
         line_subtotal:  lineSub,

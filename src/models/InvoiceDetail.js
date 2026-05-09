@@ -25,6 +25,7 @@ const InvoiceDetail = sequelize.define('InvoiceDetail', {
     validate: { min: 1 },
   },
   unit_price:     { type: DataTypes.DECIMAL(12, 2), allowNull: false, validate: { min: 0 } },
+  discount:       { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0, validate: { min: 0 } },
   tax_percentage: { type: DataTypes.DECIMAL(5, 2),  allowNull: false, defaultValue: 0, validate: { min: 0, max: 100 } },
   tax_amount:     { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0, validate: { min: 0 } },
   line_subtotal:  { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0, validate: { min: 0 } },

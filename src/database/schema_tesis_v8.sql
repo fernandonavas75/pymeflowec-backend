@@ -310,6 +310,7 @@ CREATE TABLE invoice_details (
     description    TEXT,
     quantity       INTEGER       NOT NULL CHECK (quantity > 0),
     unit_price     NUMERIC(12,2) NOT NULL CHECK (unit_price >= 0),
+    discount       NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (discount >= 0),
     tax_percentage NUMERIC(5,2)  NOT NULL DEFAULT 0
                    CHECK (tax_percentage >= 0 AND tax_percentage <= 100),
     tax_amount     NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (tax_amount >= 0),
@@ -327,6 +328,7 @@ CREATE TABLE invoice_details (
 );
 
 COMMENT ON COLUMN invoice_details.company_id  IS 'Denormalizado para RLS directo sin JOIN a invoices.';
+COMMENT ON COLUMN invoice_details.discount     IS 'Descuento total aplicado a la línea. line_subtotal = unit_price * quantity - discount.';
 COMMENT ON COLUMN invoice_details.tax_rate_id IS 'Referencia a la tasa aplicada. tax_percentage guarda el % snapshot.';
 
 -- =============================================

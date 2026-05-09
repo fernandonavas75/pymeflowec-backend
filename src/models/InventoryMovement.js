@@ -22,8 +22,9 @@ const InventoryMovement = sequelize.define('InventoryMovement', {
     validate: { min: 1 },
   },
   reference_type: {
-    type:      DataTypes.STRING(20),
-    allowNull: false,
+    type:         DataTypes.STRING(20),
+    allowNull:    false,
+    defaultValue: 'MANUAL',
     validate: { isIn: [['PURCHASE', 'SALE', 'MANUAL']] },
   },
   reference_id: { type: DataTypes.BIGINT, allowNull: true },

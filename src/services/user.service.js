@@ -92,11 +92,17 @@ const setStatus = async (id, status, companyId) => {
   return getById(user.id, companyId);
 };
 
-const changePassword = async (id, currentPassword, newPassword, companyId) => {
+const changePassword = async (id, currentPassword, newPassword, companyId, skipCurrentCheck = false) => {
   const user = await User.findOne({ where: { id, company_id: companyId } });
   if (!user) throw new AppError('Usuario no encontrado.', 404);
-  const valid = await bcrypt.compare(currentPassword, user.password_hash);
-  if (!valid) throw new AppError('Contraseña actual incorrecta.', 400);
+
+  if (!skipCurrentCheck) {
+    if (!currentPassword) throw new AppError('La contraseña actual es requerida.', 400);
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) throw new AppError('Contraseña actual incorrecta.', 400);
+  }
+
+  if (!newPassword) throw new AppError('La nueva contraseña es requerida.', 400);
   const password_hash = await bcrypt.hash(newPassword, 12);
   await user.update({ password_hash });
 };

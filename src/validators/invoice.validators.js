@@ -18,6 +18,10 @@ const createManualRules = [
   body('items.*.unit_price')
     .isFloat({ min: 0.01 })
     .withMessage('El precio unitario debe ser mayor a 0.'),
+  body('items.*.discount')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('El descuento por línea debe ser un valor positivo.'),
 ];
 
 module.exports = { createFromOrderRules, createManualRules };
