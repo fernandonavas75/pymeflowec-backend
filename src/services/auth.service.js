@@ -3,7 +3,7 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const { sequelize } = require('../config/database');
-const { User, Role, Company, StoreCustomer, CompanyModule, Module } = require('../models');
+const { User, Role, Company, StoreCustomer, CompanyModule, Module, TaxRate, ExpenseCategory } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 const { WelcomeEmail } = require('../utils/mailer');
 
@@ -128,6 +128,28 @@ const register = async (data) => {
         customer_type:   'FINAL_CONSUMER',
         document_number: '9999999999999',
         full_name:       'Consumidor Final',
+      },
+      { transaction: t }
+    );
+
+    await TaxRate.create(
+      {
+        company_id:  company.id,
+        tax_name:    'IVA 15%',
+        percentage:  15.00,
+        is_active:   true,
+        valid_from:  new Date(),
+      },
+      { transaction: t }
+    );
+
+    await ExpenseCategory.create(
+      {
+        company_id:    company.id,
+        name:          'Inventario',
+        category_type: 'INVENTARIO',
+        description:   'Carga Masiva',
+        is_active:     true,
       },
       { transaction: t }
     );
