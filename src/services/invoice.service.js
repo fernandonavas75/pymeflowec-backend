@@ -4,9 +4,23 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const {
   Invoice, InvoiceDetail, InvoicePayment, Product, StoreCustomer, User,
-  TaxRate, InventoryMovement,
+  TaxRate, InventoryMovement, CompanyModule, Module, ExpenseCategory, Expense,
 } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
+
+const _isModuleActive = async (companyId, moduleCode, transaction) => {
+  const cm = await CompanyModule.findOne({
+    where: { company_id: companyId, is_active: true },
+    include: [{ model: Module, as: 'module', where: { code: moduleCode }, attributes: ['code'] }],
+    transaction,
+  });
+  if (!cm) return false;
+  if (cm.expires_at && cm.expires_at < new Date()) {
+    await cm.update({ is_active: false }, { transaction });
+    return false;
+  }
+  return true;
+};
 
 // Calcula amount_paid y amount_pending para un conjunto de facturas (evita N+1)
 const _attachAmounts = async (invoiceRows, companyId) => {
@@ -180,11 +194,96 @@ const create = async (data, companyId, userId) => {
   }).then(id => getById(id, companyId));
 };
 
-const cancel = async (id, companyId) => {
-  const invoice = await Invoice.findOne({ where: { id, company_id: companyId } });
-  if (!invoice) throw new AppError('Factura no encontrada.', 404);
-  if (invoice.status === 'CANCELLED') throw new AppError('La factura ya está cancelada.', 400);
-  await invoice.update({ status: 'CANCELLED' });
+const cancel = async (id, companyId, userId) => {
+  await sequelize.transaction(async (t) => {
+    // Cargar factura con ítems (lock para evitar doble cancelación concurrente)
+    const invoice = await Invoice.findOne({
+      where: { id, company_id: companyId },
+      include: [{
+        model:   InvoiceDetail,
+        as:      'details',
+        include: [{ model: Product, as: 'product' }],
+      }],
+      lock:        t.LOCK.UPDATE,
+      transaction: t,
+    });
+    if (!invoice) throw new AppError('Factura no encontrada.', 404);
+    if (invoice.status === 'CANCELLED') throw new AppError('La factura ya está cancelada.', 400);
+
+    // Cobros activos (no anulados)
+    const payments = await InvoicePayment.findAll({
+      where:       { invoice_id: id, company_id: companyId, status: { [Op.ne]: 'ANULADO' } },
+      transaction: t,
+    });
+
+    // Monto efectivamente cobrado (status COBRADO)
+    const amountPaid = parseFloat(
+      payments
+        .filter(p => p.status === 'COBRADO')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0)
+        .toFixed(2)
+    );
+
+    // ── 1. Restaurar stock si MOD_INVENTORY está activo ───────────────
+    const hasInventory = await _isModuleActive(companyId, 'MOD_INVENTORY', t);
+    if (hasInventory) {
+      for (const detail of invoice.details) {
+        await detail.product.increment('stock', { by: detail.quantity, transaction: t });
+        await InventoryMovement.create({
+          company_id:     companyId,
+          product_id:     detail.product_id,
+          movement_type:  'IN',
+          quantity:       detail.quantity,
+          reference_type: 'MANUAL',
+          reference_id:   invoice.id,
+          notes:          `Devolución por cancelación de factura ${invoice.invoice_number}`,
+          created_by:     userId,
+        }, { transaction: t });
+      }
+    }
+
+    // ── 2. Anular todos los cobros pendientes / cobrados ─────────────
+    for (const payment of payments) {
+      await payment.update({ status: 'ANULADO' }, { transaction: t });
+    }
+
+    // ── 3. Egreso imprevisto si hubo dinero ya cobrado ────────────────
+    if (amountPaid > 0) {
+      const hasFinance = await _isModuleActive(companyId, 'MOD_FINANCE', t);
+      if (hasFinance) {
+        // Buscar categoría IMPREVISTO activa; crearla si no existe
+        let category = await ExpenseCategory.findOne({
+          where:       { company_id: companyId, category_type: 'IMPREVISTO', is_active: true },
+          transaction: t,
+        });
+        if (!category) {
+          category = await ExpenseCategory.create({
+            company_id:    companyId,
+            name:          'Imprevistos',
+            category_type: 'IMPREVISTO',
+            description:   'Gastos imprevistos y pérdidas no planificadas',
+          }, { transaction: t });
+        }
+
+        await Expense.create({
+          company_id:     companyId,
+          category_id:    category.id,
+          description:    `Pérdida por cancelación de factura ${invoice.invoice_number}`,
+          amount:         amountPaid,
+          expense_date:   new Date().toISOString().split('T')[0],
+          voucher_number: invoice.invoice_number,
+          voucher_type:   'OTRO',
+          payment_status: 'PAGADO',
+          notes:          `Egreso automático. Monto cobrado no recuperable al cancelar la factura ${invoice.invoice_number}.`,
+          created_by:     userId,
+        }, { transaction: t });
+      }
+    }
+
+    // ── 4. Cancelar la factura ────────────────────────────────────────
+    await invoice.update({ status: 'CANCELLED' }, { transaction: t });
+  });
+
   return getById(id, companyId);
 };
 

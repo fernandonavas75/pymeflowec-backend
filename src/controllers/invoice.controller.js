@@ -27,7 +27,7 @@ const create = async (req, res, next) => {
 
 const cancel = async (req, res, next) => {
   try {
-    const data = await service.cancel(req.params.id, req.user.company_id);
+    const data = await service.cancel(req.params.id, req.user.company_id, req.user.id);
     res.status(200).json({ success: true, data });
   } catch (err) { next(err); }
 };
