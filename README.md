@@ -1,100 +1,242 @@
-# PymeFlowEc — Documentación del Backend
+# PymeFlowEc — Backend
 
-**Stack**: Node.js · Express · PostgreSQL 15+ · Sequelize ORM · JWT  
-**Schema**: `erp` (PostgreSQL schema)  
-**Versión API**: 2.0.0  
-**Base URL**: `http://localhost:3000/api`  
-**Swagger UI**: `http://localhost:3000/api-docs`
+API REST del sistema ERP multi-tenant para PYMEs ecuatorianas. Proyecto de tesis desarrollado con Node.js, Express y Sequelize sobre PostgreSQL.
+
+**Puerto dev:** `http://localhost:8080` · **Swagger:** `http://localhost:8080/api-docs`  
+**Versión API:** 2.0.0 · **Schema DB:** `erp` (PostgreSQL schema)
 
 ---
 
 ## Tabla de contenidos
 
-1. [Sistema de roles](#1-sistema-de-roles)
-2. [Autenticación y tokens JWT](#2-autenticación-y-tokens-jwt)
-3. [Middlewares](#3-middlewares)
-4. [Endpoints](#4-endpoints)
-   - [Auth](#41-auth--apiauth)
-   - [Usuarios de tienda](#42-usuarios-de-tienda--apiusers)
-   - [Empresas](#43-empresas--apicompanies)
-   - [Productos](#44-productos--apiproducts)
-   - [Clientes](#45-clientes--apicustomers)
-   - [Proveedores](#46-proveedores--apisuppliers)
-   - [Tasas de impuesto](#47-tasas-de-impuesto--apitax-rates)
-   - [Facturas](#48-facturas--apiinvoices)
-   - [Módulos](#49-módulos--apiplatformmodules)
-   - [Solicitudes de módulos](#410-solicitudes-de-módulos--apimodule-requests)
-   - [Usuarios de plataforma](#411-usuarios-de-plataforma--apiplatformusers)
-   - [Roles](#412-roles--apiroles)
-   - [Logs de auditoría](#413-logs-de-auditoría--apiaudit-logs)
-5. [Modelos de base de datos](#5-modelos-de-base-de-datos)
-6. [Servicios — lógica de negocio](#6-servicios--lógica-de-negocio)
-7. [Formato de respuesta](#7-formato-de-respuesta)
-8. [Variables de entorno](#8-variables-de-entorno)
+1. [Stack tecnológico](#1-stack-tecnológico)
+2. [Requisitos previos](#2-requisitos-previos)
+3. [Configuración](#3-configuración)
+4. [Instalación y arranque](#4-instalación-y-arranque)
+5. [Arquitectura del proyecto](#5-arquitectura-del-proyecto)
+6. [Sistema de módulos](#6-sistema-de-módulos)
+7. [Roles y permisos](#7-roles-y-permisos)
+8. [Autenticación JWT](#8-autenticación-jwt)
+9. [Middlewares](#9-middlewares)
+10. [Endpoints](#10-endpoints)
+    - [Auth](#101-auth--apiauth)
+    - [Usuarios de tienda](#102-usuarios-de-tienda--apiusers)
+    - [Empresas](#103-empresas--apicompanies)
+    - [Roles](#104-roles--apiroles)
+    - [Productos y stock](#105-productos-y-stock--apiproducts)
+    - [Clientes](#106-clientes--apicustomers)
+    - [Proveedores](#107-proveedores--apisuppliers)
+    - [Tasas de impuesto](#108-tasas-de-impuesto--apitax-rates)
+    - [Facturas](#109-facturas--apiinvoices)
+    - [Cobros de facturas](#1010-cobros-de-facturas--apiinvoice-payments)
+    - [Movimientos de inventario](#1011-movimientos-de-inventario--apiinventory-movements)
+    - [Caja chica](#1012-caja-chica--apipetty-cash)
+    - [Categorías de egresos](#1013-categorías-de-egresos--apiexpense-categories)
+    - [Egresos](#1014-egresos--apiexpenses)
+    - [Pagos de egresos](#1015-pagos-de-egresos--apiexpense-payments)
+    - [Presupuestos de egresos](#1016-presupuestos-de-egresos--apiexpense-budgets)
+    - [Egresos recurrentes](#1017-egresos-recurrentes--apiexpense-recurring)
+    - [Módulos (plataforma)](#1018-módulos-plataforma--apiplatformmodules)
+    - [Solicitudes de módulos](#1019-solicitudes-de-módulos--apimodule-requests)
+    - [Usuarios de plataforma](#1020-usuarios-de-plataforma--apiplatformusers)
+    - [Logs de auditoría](#1021-logs-de-auditoría--apiaudit-logs)
+11. [Modelos de base de datos](#11-modelos-de-base-de-datos)
+12. [Servicios — lógica de negocio](#12-servicios--lógica-de-negocio)
+13. [Tareas programadas](#13-tareas-programadas-cron-jobs)
+14. [Formato de respuesta](#14-formato-de-respuesta)
+15. [Variables de entorno](#15-variables-de-entorno)
 
 ---
 
-## 1. Sistema de roles
+## 1. Stack tecnológico
 
-El sistema es **multitenant**: cada usuario pertenece a una empresa (`company_id`) o es usuario de plataforma (`company_id = NULL`).
+| Capa | Tecnología |
+|------|-----------|
+| Runtime | Node.js (CommonJS) |
+| Framework HTTP | Express 4 |
+| ORM | Sequelize 6 + PostgreSQL (pg) |
+| Cache / Rate limit | Redis (ioredis + rate-limit-redis) |
+| Autenticación | JWT (jsonwebtoken) + bcryptjs |
+| Validación | express-validator |
+| Seguridad HTTP | helmet, cors, express-rate-limit |
+| Documentación API | Swagger (swagger-jsdoc + swagger-ui-express) |
+| Logging | Winston |
+| Email | Nodemailer |
+| Tareas programadas | node-cron |
+| Dev tooling | nodemon, eslint, sequelize-cli |
 
-### Roles disponibles
+---
+
+## 2. Requisitos previos
+
+- Node.js >= 18
+- PostgreSQL >= 14
+- Redis >= 6 (opcional — el sistema funciona sin él, pero sin rate-limit persistente)
+
+---
+
+## 3. Configuración
+
+Crea un archivo `.env` en la raíz del proyecto:
+
+```env
+# Servidor
+PORT=8080
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+API_BASE_URL=https://api.tudominio.com   # solo producción
+
+# Base de datos
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=pymeflowec
+DB_USER=postgres
+DB_PASSWORD=tu_password
+
+# JWT (mínimo 32 caracteres aleatorios)
+JWT_SECRET=una_cadena_aleatoria_de_al_menos_32_caracteres
+JWT_REFRESH_SECRET=otra_cadena_aleatoria_de_al_menos_32_caracteres
+JWT_EXPIRES_IN=8h
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Redis (opcional)
+REDIS_URL=redis://localhost:6379
+
+# Rate limiting (opcional, valores por defecto indicados)
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=300
+
+# Email (Nodemailer)
+SMTP_HOST=smtp.ejemplo.com
+SMTP_PORT=587
+SMTP_USER=correo@ejemplo.com
+SMTP_PASS=contraseña
+```
+
+---
+
+## 4. Instalación y arranque
+
+```bash
+# Instalar dependencias
+npm install
+
+# Crear la base de datos (ejecutar el schema SQL)
+psql -U postgres -d pymeflowec -f src/database/schema_tesis_v9.sql
+
+# (Opcional) Cargar datos de semilla
+psql -U postgres -d pymeflowec -f src/database/seeds_tesis_v8.sql
+
+# Servidor de desarrollo con hot reload
+npm run dev
+
+# Servidor de producción
+npm start
+```
+
+---
+
+## 5. Arquitectura del proyecto
+
+```
+src/
+├── config/
+│   ├── database.js           — conexión Sequelize + PostgreSQL
+│   └── redis.js              — cliente Redis
+├── middlewares/
+│   ├── authenticate.js       — verifica JWT, adjunta req.user
+│   ├── authorize.js          — verifica roles de tienda (STORE_*)
+│   ├── platformAuth.js       — verifica roles de plataforma (PLATFORM_*)
+│   ├── platformStoreAccess.js — acceso plataforma a recursos de tienda
+│   ├── checkModuleExpiry.js  — verifica módulo activo por empresa
+│   ├── validate.js           — ejecuta express-validator, retorna 422
+│   └── errorHandler.js       — handler global de errores 500
+├── models/                   — modelos Sequelize y asociaciones
+├── services/                 — lógica de negocio (sin req/res)
+├── controllers/              — manejo HTTP, delega a services
+├── routes/                   — define rutas + middlewares + validators
+├── validators/               — reglas express-validator por entidad
+├── jobs/
+│   ├── expireModules.job.js  — cron: expira módulos vencidos (diario 00:00)
+│   └── recurringExpenses.job.js — cron: genera egresos desde plantillas (diario 01:00)
+└── utils/
+    ├── logger.js             — Winston logger
+    ├── mailer.js             — Nodemailer
+    └── ecuadorId.js          — validación cédula/RUC Ecuador
+```
+
+---
+
+## 6. Sistema de módulos
+
+El acceso a cada área funcional se controla por módulo (`CompanyModule`). Cada empresa activa los módulos que necesita mediante solicitudes que aprueba la plataforma.
+
+| Código | Nombre | Endpoints protegidos |
+|--------|--------|---------------------|
+| `MOD_INVOICING` | Facturación | `/api/customers`, `/api/invoices` |
+| `MOD_SUPPLIERS` | Proveedores | `/api/suppliers` |
+| `MOD_PRODUCTS` | Productos | `/api/products` (excepto `/stock`) |
+| `MOD_INVENTORY` | Inventario | `/api/products/:id/stock`, `/api/inventory-movements` |
+| `MOD_TAX` | Impuestos | `/api/tax-rates` |
+| `MOD_PAYMENTS` | Cobros | `/api/invoice-payments` |
+| `MOD_FINANCE` | Finanzas | `/api/petty-cash`, `/api/expenses`, `/api/expense-categories`, `/api/expense-budgets`, `/api/expense-recurring` |
+
+---
+
+## 7. Roles y permisos
+
+El sistema es **multi-tenant**: cada usuario pertenece a una empresa (`company_id`) o es usuario de plataforma (`company_id = NULL`).
 
 | Rol | Scope | Descripción |
 |-----|-------|-------------|
-| `PLATFORM_ADMIN` | `PLATFORM` | Administrador global. Gestiona empresas, módulos, usuarios de plataforma y solicitudes. |
-| `PLATFORM_SUPPORT` | `PLATFORM` | Soporte técnico. Acceso de solo lectura a datos de tiendas mediante `?company_id`. |
-| `STORE_ADMIN` | `STORE` | Administrador de tienda. Acceso completo a su empresa: usuarios, productos, facturas, configuración. |
-| `STORE_SELLER` | `STORE` | Vendedor. Puede crear facturas y gestionar clientes. No puede administrar la tienda. |
-| `STORE_WAREHOUSE` | `STORE` | Bodeguero. Solo puede ajustar stock. No puede facturar ni administrar. |
+| `STORE_ADMIN` | STORE | CRUD completo, apertura/cierre de caja, anulaciones |
+| `STORE_SELLER` | STORE | Crear facturas, registrar cobros, movimientos de caja |
+| `STORE_WAREHOUSE` | STORE | Ajustar stock (IN/OUT, no ADJUSTMENT) |
+| `PLATFORM_ADMIN` | PLATFORM | Gestión de empresas, usuarios y módulos |
+| `PLATFORM_STAFF` | PLATFORM | Solo lectura en modo soporte (`?company_id`) |
 
-### Matriz de acceso por endpoint
+### Matriz de acceso principal
 
-| Recurso | PLATFORM_ADMIN | PLATFORM_SUPPORT | STORE_ADMIN | STORE_SELLER | STORE_WAREHOUSE |
+| Recurso | PLATFORM_ADMIN | PLATFORM_STAFF | STORE_ADMIN | STORE_SELLER | STORE_WAREHOUSE |
 |---------|:-:|:-:|:-:|:-:|:-:|
-| `/products` (GET) | ✓ `?company_id` | ✓ `?company_id` | ✓ | ✓ | ✓ |
-| `/products` (POST/PUT/DELETE) | ✓ | — | ✓ | — | — |
-| `/products/:id/stock` (PATCH) | ✓ | — | ✓ | — | ✓ |
-| `/invoices` (GET) | ✓ `?company_id` | ✓ `?company_id` | ✓ | ✓ | ✓ |
-| `/invoices` (POST) | ✓ | — | ✓ | ✓ | — |
+| `/products` GET | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `/products` POST/PUT/DELETE | ✓ | — | ✓ | — | — |
+| `/products/:id/stock` PATCH | ✓ | — | ✓ | — | ✓ |
+| `/invoices` GET | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `/invoices` POST | ✓ | — | ✓ | ✓ | — |
 | `/invoices/:id/cancel` | ✓ | — | ✓ | — | — |
-| `/customers` (GET) | ✓ `?company_id` | ✓ `?company_id` | ✓ | ✓ | — |
-| `/customers` (POST) | ✓ | — | ✓ | ✓ | — |
-| `/suppliers` | ✓ `?company_id` | ✓ `?company_id` | ✓ | — | — |
-| `/tax-rates` | ✓ `?company_id` | ✓ `?company_id` | ✓ | — | — |
+| `/invoice-payments` | ✓ | ✓ | ✓ | ✓ | — |
+| `/customers` GET | ✓ | ✓ | ✓ | ✓ | — |
+| `/customers` POST | ✓ | — | ✓ | ✓ | — |
+| `/suppliers` | ✓ | ✓ | ✓ | — | — |
+| `/tax-rates` | ✓ | ✓ | ✓ | — | — |
+| `/petty-cash` abrir/cerrar | ✓ | — | ✓ | — | — |
+| `/petty-cash` movimientos | ✓ | — | ✓ | ✓ | — |
+| `/expenses` | ✓ | ✓ | ✓ | — | — |
 | `/users` | — | — | ✓ | — | — |
-| `/companies` | ✓ | ✓ (GET) | — | — | — |
-| `/platform/users` | ✓ | — | — | — | — |
-| `/module-requests` (store) | — | — | ✓ | — | — |
-| `/module-requests/all` | ✓ | ✓ | — | — | — |
-| `/module-requests/approve` | ✓ | — | — | — | — |
+| `/companies` GET | ✓ | ✓ | — | — | — |
+| `/companies` POST/PUT | ✓ | — | — | — | — |
 | `/audit-logs` | ✓ | ✓ | — | — | — |
 
-> `?company_id` indica que los usuarios de plataforma deben pasar el query param `company_id` para acceder a datos de una tienda en modo cliente.
+> Los usuarios de plataforma deben pasar `?company_id=X` para acceder a datos de tienda en modo cliente.
 
 ---
 
-## 2. Autenticación y tokens JWT
+## 8. Autenticación JWT
 
 ### Flujo de login
 
 ```
 POST /api/auth/login
   → Valida email + password (bcrypt)
-  → Verifica status del usuario (ACTIVE)
-  → Verifica status de la empresa (ACTIVE) si es usuario de tienda
+  → Verifica status ACTIVE del usuario y empresa
   → Devuelve access_token (8h) + refresh_token (7d)
 ```
 
 ### Estructura del JWT (access token)
 
 ```json
-{
-  "id": 1,
-  "company_id": 5,
-  "iat": 1700000000,
-  "exp": 1700028800
-}
+{ "id": 1, "company_id": 5, "iat": 1700000000, "exp": 1700028800 }
 ```
 
 Firmado con `JWT_SECRET`. El refresh token usa `JWT_REFRESH_SECRET`.
@@ -103,14 +245,6 @@ Firmado con `JWT_SECRET`. El refresh token usa `JWT_REFRESH_SECRET`.
 
 ```
 Authorization: Bearer <access_token>
-```
-
-### Refresh de token expirado
-
-```
-POST /api/auth/refresh
-Body: { "refresh_token": "..." }
-→ Devuelve nuevo access_token (8h)
 ```
 
 ### Registro de empresa (self-onboarding)
@@ -123,89 +257,72 @@ POST /api/auth/register
 
 ### Errores de autenticación
 
-| Código | Mensaje | Causa |
-|--------|---------|-------|
-| 401 | Token no proporcionado. | Header `Authorization` ausente |
-| 401 | Token inválido. | Firma JWT incorrecta |
-| 401 | Token expirado. | `exp` superado |
-| 401 | Usuario no encontrado o inactivo. | Usuario eliminado o inactivo |
-| 403 | Empresa inactiva o suspendida. | Empresa del usuario en estado incorrecto |
+| Código | Causa |
+|--------|-------|
+| 401 | Token ausente, inválido o expirado |
+| 401 | Usuario no encontrado o inactivo |
+| 403 | Empresa inactiva o suspendida |
+| 403 | Rol sin permisos suficientes |
 
 ---
 
-## 3. Middlewares
+## 9. Middlewares
 
 ### `authenticate`
-Verifica el JWT y carga el usuario completo (con rol y empresa) en `req.user`.  
-Para métodos de escritura (POST/PUT/PATCH/DELETE) registra ip, user-agent y user_id en el log de auditoría al completarse la respuesta (2xx).
+Verifica el JWT y carga el usuario (con rol y empresa) en `req.user`. En métodos de escritura (POST/PUT/PATCH/DELETE) registra ip, user-agent y user_id en el log de auditoría al completarse la respuesta (2xx).
 
 ### `authorize(...roles)`
 Autorización simple basada en nombre de rol o scope.
 
 ```js
-authorize('STORE_ADMIN')           // solo STORE_ADMIN
-authorize('PLATFORM')              // cualquier rol con scope PLATFORM
+authorize('STORE_ADMIN')             // solo STORE_ADMIN
+authorize('PLATFORM')                // cualquier rol con scope PLATFORM
 authorize('STORE_ADMIN', 'PLATFORM') // cualquiera de los dos
 ```
 
 ### `platformStoreAccess(...storeRoles)`
-Versión extendida de `authorize` para rutas multitenant:
-
-- **Usuario de tienda**: pasa si su rol coincide con los `storeRoles` indicados.
-- **Usuario de plataforma** + `?company_id=X`: inyecta `company_id` en `req.user` para que el controlador funcione sin cambios.  
-  - `PLATFORM_ADMIN` puede leer y escribir.  
-  - `PLATFORM_SUPPORT` solo puede leer (GET).
+Versión extendida para rutas multi-tenant:
+- **Usuario de tienda**: pasa si su rol coincide con los `storeRoles`.
+- **PLATFORM_ADMIN** + `?company_id=X`: acceso completo a la tienda.
+- **PLATFORM_STAFF** + `?company_id=X`: solo GET.
 - **Otro caso**: 403.
 
-```js
-platformStoreAccess('STORE')                        // cualquier rol STORE
-platformStoreAccess('STORE_ADMIN')                  // solo admin
-platformStoreAccess('STORE_ADMIN', 'STORE_WAREHOUSE') // admin o bodeguero
-```
-
-### `requirePlatform` / `requirePlatformAdmin`
-Guards de plataforma (definidos en `platformAuth.js`):
-
-- `requirePlatform` → `role.scope === 'PLATFORM'`
-- `requirePlatformAdmin` → `role.name === 'PLATFORM_ADMIN'`
+### `checkModuleExpiry(moduleCode)`
+Verifica que la empresa tenga el módulo activo y no expirado. Retorna 403 si no.
 
 ### `validate(rules)`
-Wrapper de `express-validator`. Devuelve **422** con array de errores si la validación falla.
+Wrapper de `express-validator`. Retorna **422** con array de errores si la validación falla:
 
 ```json
 {
   "success": false,
-  "errors": [
-    { "field": "email", "message": "Email inválido." }
-  ]
+  "errors": [{ "field": "email", "message": "Email inválido." }]
 }
 ```
 
 ### `errorHandler`
-Manejador global de errores. Transforma errores de Sequelize y errores internos a respuestas HTTP:
+Manejador global de errores:
 
-| Error | Código HTTP |
-|-------|-------------|
+| Error | HTTP |
+|-------|------|
 | `SequelizeValidationError` | 400 |
 | `SequelizeUniqueConstraintError` | 409 |
 | `SequelizeForeignKeyConstraintError` | 400 |
-| `AppError` (custom) | status del error |
-| Error desconocido | 500 |
+| Error interno desconocido | 500 |
 
 ---
 
-## 4. Endpoints
+## 10. Endpoints
 
-> **Convención**: todos los endpoints requieren `Authorization: Bearer <token>` salvo indicación contraria.
+> Todos los endpoints requieren `Authorization: Bearer <token>` salvo indicación contraria.  
+> Todos los endpoints de lista aceptan `?page=1&limit=20` y retornan la estructura de paginación.
 
 ---
 
-### 4.1 Auth — `/api/auth`
+### 10.1 Auth — `/api/auth`
 
-#### `POST /api/auth/login`
-Autenticar usuario. Limitado a **10 requests/15 min** por IP.
-
-**Sin autenticación.**
+#### `POST /api/auth/login` *(sin auth)*
+Autenticar usuario. Limitado a **10 req / 15 min** por IP.
 
 **Body:**
 ```json
@@ -217,9 +334,7 @@ Autenticar usuario. Limitado a **10 requests/15 min** por IP.
 {
   "success": true,
   "user": {
-    "id": 3,
-    "full_name": "José Pérez",
-    "email": "jose@donpepe.com",
+    "id": 3, "full_name": "José Pérez", "email": "jose@donpepe.com",
     "company_id": 1,
     "role": { "id": 3, "name": "STORE_ADMIN", "scope": "STORE" },
     "company": { "id": 1, "name": "Tienda Don Pepe", "status": "ACTIVE" }
@@ -231,10 +346,8 @@ Autenticar usuario. Limitado a **10 requests/15 min** por IP.
 
 ---
 
-#### `POST /api/auth/register`
-Registro de nueva empresa (self-onboarding). Crea empresa + usuario STORE_ADMIN en una transacción.
-
-**Sin autenticación.**
+#### `POST /api/auth/register` *(sin auth)*
+Registro de nueva empresa. Crea empresa + STORE_ADMIN + cliente Consumidor Final en una transacción.
 
 **Body:**
 ```json
@@ -253,86 +366,42 @@ Registro de nueva empresa (self-onboarding). Crea empresa + usuario STORE_ADMIN 
 
 ---
 
-#### `POST /api/auth/refresh`
+#### `POST /api/auth/refresh` *(sin auth)*
 Renovar access token expirado.
 
-**Sin autenticación.**
+**Body:** `{ "refresh_token": "eyJ..." }`
 
-**Body:**
-```json
-{ "refresh_token": "eyJ..." }
-```
-
-**Respuesta 200:**
-```json
-{ "success": true, "access_token": "eyJ..." }
-```
+**Respuesta 200:** `{ "success": true, "access_token": "eyJ..." }`
 
 ---
 
 #### `GET /api/auth/me`
 Devuelve el usuario autenticado actual.
 
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": { "id": 3, "full_name": "...", "role": {...}, "company": {...} }
-}
-```
-
----
-
 #### `PATCH /api/auth/change-password`
 Cambiar contraseña del usuario autenticado.
 
-**Body:**
-```json
-{
-  "current_password": "Password123!",
-  "new_password": "NuevaPass456!"
-}
-```
-
-**Respuesta 200:**
-```json
-{ "success": true, "message": "Contraseña actualizada." }
-```
+**Body:** `{ "current_password": "...", "new_password": "..." }`
 
 ---
 
-### 4.2 Usuarios de tienda — `/api/users`
+### 10.2 Usuarios de tienda — `/api/users`
 
-Todos requieren `STORE_ADMIN` (o plataforma en modo cliente).
+Requieren `STORE_ADMIN`.
 
-#### `GET /api/users`
-Listar usuarios de la empresa. Soporta paginación.
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/users` | Listar usuarios de la empresa |
+| GET | `/api/users/:id` | Obtener usuario por ID |
+| POST | `/api/users` | Crear usuario (`role_id` debe ser scope STORE) |
+| PUT | `/api/users/:id` | Actualizar datos |
+| PATCH | `/api/users/:id/activate` | Activar usuario |
+| PATCH | `/api/users/:id/deactivate` | Desactivar usuario |
+| PATCH | `/api/users/:id/lock` | Bloquear usuario |
+| PATCH | `/api/users/:id/change-password` | Admin cambia contraseña de un usuario |
+| DELETE | `/api/users/:id` | Soft-delete |
 
-**Query params:** `page`, `limit`
-
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    { "id": 4, "full_name": "María López", "email": "maria@donpepe.com",
-      "status": "ACTIVE", "role": { "name": "STORE_SELLER" } }
-  ],
-  "total": 3, "page": 1, "limit": 20, "pages": 1
-}
-```
-
----
-
-#### `GET /api/users/:id`
-Obtener un usuario por ID.
-
----
-
-#### `POST /api/users`
-Crear usuario en la empresa.
-
-**Body:**
+**Body POST/PUT:**
 ```json
 {
   "full_name": "Pedro Almeida",
@@ -342,142 +411,61 @@ Crear usuario en la empresa.
 }
 ```
 
-> `role_id` debe corresponder a un rol con `scope=STORE`.
+---
 
-**Respuesta 201:**
-```json
-{ "success": true, "data": { "id": 5, "full_name": "Pedro Almeida", ... } }
-```
+### 10.3 Empresas — `/api/companies`
+
+Requieren scope PLATFORM. Escrituras requieren `PLATFORM_ADMIN`.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/companies` | Listar empresas (`?search`, `?status`) |
+| GET | `/api/companies/:id` | Detalle con usuarios y módulos activos |
+| POST | `/api/companies` | Crear empresa manualmente |
+| PUT | `/api/companies/:id` | Actualizar empresa |
+| PATCH | `/api/companies/:id/activate` | Activar |
+| PATCH | `/api/companies/:id/deactivate` | Desactivar |
+| PATCH | `/api/companies/:id/suspend` | Suspender |
 
 ---
 
-#### `PUT /api/users/:id`
-Actualizar datos del usuario.
+### 10.4 Roles — `/api/roles`
 
-**Body:** `full_name`, `email`, `role_id` (campos opcionales).
-
----
-
-#### `PATCH /api/users/:id/activate`
-#### `PATCH /api/users/:id/deactivate`
-#### `PATCH /api/users/:id/lock`
-Cambiar estado del usuario.
-
-**Respuesta 200:**
-```json
-{ "success": true, "message": "Usuario activado." }
-```
+#### `GET /api/roles`
+Devuelve los roles con `scope=STORE`. Usado para poblar el selector al crear usuarios.
 
 ---
 
-#### `PATCH /api/users/:id/change-password`
-El propio usuario cambia su contraseña (no requiere ser admin, solo autenticado).
+### 10.5 Productos y stock — `/api/products`
 
-**Body:** `current_password`, `new_password`
+Requiere módulo `MOD_PRODUCTS` (excepto stock que requiere `MOD_INVENTORY`).
 
----
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/products` | Todos STORE + plataforma | Listar (`?search`, `?status`) |
+| GET | `/api/products/:id` | Todos STORE + plataforma | Detalle |
+| POST | `/api/products` | STORE_ADMIN | Crear producto |
+| PUT | `/api/products/:id` | STORE_ADMIN | Actualizar |
+| PATCH | `/api/products/:id/stock` | STORE_ADMIN, STORE_WAREHOUSE | Ajustar stock |
+| PATCH | `/api/products/:id/activate` | STORE_ADMIN | Activar |
+| PATCH | `/api/products/:id/deactivate` | STORE_ADMIN | Desactivar |
+| DELETE | `/api/products/:id` | STORE_ADMIN | Soft-delete |
 
-#### `DELETE /api/users/:id`
-Soft-delete del usuario.
-
----
-
-### 4.3 Empresas — `/api/companies`
-
-Requieren scope `PLATFORM`. Las rutas de escritura requieren `PLATFORM_ADMIN`.
-
-#### `GET /api/companies`
-Listar todas las empresas. Query params: `page`, `limit`, `search`, `status`.
-
-#### `GET /api/companies/:id`
-Obtener empresa por ID (incluye usuarios y módulos activos).
-
-#### `POST /api/companies`
-Crear empresa manualmente (solo `PLATFORM_ADMIN`).
-
-**Body:**
+**Body POST/PUT:**
 ```json
 {
-  "name": "Nueva Tienda",
-  "business_name": "Nueva Tienda S.A.",
-  "ruc": "1790099887001",
-  "email": "info@nueva.com",
-  "phone": "0991234567",
-  "address": "Av. Principal 123"
-}
-```
-
-#### `PUT /api/companies/:id`
-Actualizar datos de empresa.
-
-#### `PATCH /api/companies/:id/activate`
-#### `PATCH /api/companies/:id/deactivate`
-#### `PATCH /api/companies/:id/suspend`
-Cambiar estado de empresa.
-
----
-
-### 4.4 Productos — `/api/products`
-
-#### `GET /api/products`
-Listar productos de la empresa. Query params: `page`, `limit`, `search`, `status`.
-
-**Roles:** todos (STORE_ADMIN, STORE_SELLER, STORE_WAREHOUSE, plataforma con `?company_id`).
-
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1, "sku": "ARR-001", "name": "Arroz 1kg",
-      "purchase_price": "0.85", "sale_price": "1.10",
-      "stock": 47, "min_stock": 10, "status": "ACTIVE",
-      "supplier": { "id": 1, "name": "Distribuidora Nacional S.A." },
-      "tax_rate": { "id": 1, "tax_name": "IVA 15%", "percentage": "15.00" }
-    }
-  ],
-  "total": 8, "page": 1, "limit": 20, "pages": 1
-}
-```
-
----
-
-#### `GET /api/products/:id`
-Obtener producto por ID.
-
----
-
-#### `POST /api/products`
-Crear producto. **Requiere STORE_ADMIN.**
-
-**Body:**
-```json
-{
-  "sku": "LEH-002",
-  "name": "Leche descremada 1L",
-  "purchase_price": 0.95,
-  "sale_price": 1.30,
-  "stock": 20,
-  "min_stock": 5,
+  "sku": "ARR-001",
+  "name": "Arroz 1kg",
+  "purchase_price": 0.85,
+  "sale_price": 1.10,
+  "stock": 100,
+  "min_stock": 10,
   "supplier_id": 1,
   "tax_rate_id": 1
 }
 ```
 
-**Respuesta 201:** objeto del producto creado.
-
----
-
-#### `PUT /api/products/:id`
-Actualizar producto. **Requiere STORE_ADMIN.**
-
----
-
-#### `PATCH /api/products/:id/stock`
-Ajustar stock (entrada, salida o ajuste manual). **Requiere STORE_ADMIN o STORE_WAREHOUSE.**
-
-**Body:**
+**Body PATCH stock:**
 ```json
 {
   "quantity": 50,
@@ -490,59 +478,23 @@ Ajustar stock (entrada, salida o ajuste manual). **Requiere STORE_ADMIN o STORE_
 |-----------------|--------|
 | `IN` | Suma al stock |
 | `OUT` | Resta del stock |
-| `ADJUSTMENT` | Establece stock absoluto |
-
-Crea un registro en `inventory_movements`.
-
-**Respuesta 200:**
-```json
-{ "success": true, "data": { "id": 1, "stock": 97, ... } }
-```
+| `ADJUSTMENT` | Establece stock absoluto (solo STORE_ADMIN) |
 
 ---
 
-#### `PATCH /api/products/:id/activate`
-#### `PATCH /api/products/:id/deactivate`
-**Requiere STORE_ADMIN.**
+### 10.6 Clientes — `/api/customers`
 
----
+Requiere módulo `MOD_INVOICING`.
 
-#### `DELETE /api/products/:id`
-Soft-delete. **Requiere STORE_ADMIN.**
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/customers` | STORE_ADMIN, STORE_SELLER + plataforma | Listar |
+| GET | `/api/customers/:id` | STORE_ADMIN, STORE_SELLER + plataforma | Detalle |
+| POST | `/api/customers` | STORE_ADMIN, STORE_SELLER | Crear |
+| PUT | `/api/customers/:id` | STORE_ADMIN | Actualizar |
+| DELETE | `/api/customers/:id` | STORE_ADMIN | Soft-delete |
 
----
-
-### 4.5 Clientes — `/api/customers`
-
-#### `GET /api/customers`
-Listar clientes. **Roles:** STORE_ADMIN, STORE_SELLER, plataforma.
-
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1, "customer_type": "CEDULA",
-      "document_number": "1712345678",
-      "full_name": "Carlos Mendoza",
-      "email": "carlos@email.com", "phone": "0998765432"
-    }
-  ]
-}
-```
-
----
-
-#### `GET /api/customers/:id`
-Obtener cliente por ID.
-
----
-
-#### `POST /api/customers`
-Crear cliente. **Roles:** STORE_ADMIN, STORE_SELLER.
-
-**Body:**
+**Body POST:**
 ```json
 {
   "customer_type": "CEDULA",
@@ -555,41 +507,25 @@ Crear cliente. **Roles:** STORE_ADMIN, STORE_SELLER.
 
 | `customer_type` | Documento |
 |-----------------|-----------|
-| `CEDULA` | Cédula de identidad (10 dígitos) |
-| `RUC` | RUC empresarial (13 dígitos) |
-| `FINAL_CONSUMER` | `9999999999999` (siempre uno por empresa) |
+| `CEDULA` | Cédula 10 dígitos (validación módulo 10) |
+| `RUC` | RUC 13 dígitos (validación SRI) |
+| `FINAL_CONSUMER` | `9999999999999` — uno por empresa |
 
 ---
 
-#### `PUT /api/customers/:id`
-Actualizar cliente. **Requiere STORE_ADMIN.**
+### 10.7 Proveedores — `/api/suppliers`
 
----
+Requiere módulo `MOD_SUPPLIERS`.
 
-#### `DELETE /api/customers/:id`
-Soft-delete. **Requiere STORE_ADMIN.**
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/suppliers` | Listar |
+| GET | `/api/suppliers/:id` | Detalle |
+| POST | `/api/suppliers` | Crear |
+| PUT | `/api/suppliers/:id` | Actualizar |
+| DELETE | `/api/suppliers/:id` | Soft-delete |
 
----
-
-### 4.6 Proveedores — `/api/suppliers`
-
-**GET (lista/detalle):** STORE_ADMIN + plataforma.  
-**POST/PUT/DELETE:** STORE_ADMIN.
-
-#### `GET /api/suppliers`
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    { "id": 1, "name": "Distribuidora Nacional S.A.", "ruc": "1791234567001",
-      "phone": "0991234567", "email": "ventas@distnacional.com" }
-  ]
-}
-```
-
-#### `POST /api/suppliers`
-**Body:**
+**Body POST:**
 ```json
 {
   "name": "Proveedor ABC",
@@ -602,25 +538,18 @@ Soft-delete. **Requiere STORE_ADMIN.**
 
 ---
 
-### 4.7 Tasas de impuesto — `/api/tax-rates`
+### 10.8 Tasas de impuesto — `/api/tax-rates`
 
-**GET:** STORE_ADMIN + plataforma.  
-**POST/PUT:** STORE_ADMIN.
+Requiere módulo `MOD_TAX`. **IVA Ecuador: 15% fijo.**
 
-#### `GET /api/tax-rates`
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    { "id": 1, "tax_name": "IVA 15%", "percentage": "15.00",
-      "is_active": true, "valid_from": "2024-04-01", "valid_to": null }
-  ]
-}
-```
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/tax-rates` | Listar |
+| GET | `/api/tax-rates/:id` | Detalle |
+| POST | `/api/tax-rates` | Crear tasa |
+| PUT | `/api/tax-rates/:id` | Actualizar |
 
-#### `POST /api/tax-rates`
-**Body:**
+**Body POST:**
 ```json
 {
   "tax_name": "IVA 15%",
@@ -632,46 +561,50 @@ Soft-delete. **Requiere STORE_ADMIN.**
 
 ---
 
-### 4.8 Facturas — `/api/invoices`
+### 10.9 Facturas — `/api/invoices`
 
-#### `GET /api/invoices`
-Listar facturas. **Roles:** todos STORE + plataforma.
+Requiere módulo `MOD_INVOICING`.
 
-Query params: `page`, `limit`, `status` (ISSUED / CANCELLED).
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/invoices` | Todos STORE + plataforma | Listar (`?status=ISSUED\|CANCELLED`) |
+| GET | `/api/invoices/:id` | Todos STORE + plataforma | Detalle con ítems |
+| POST | `/api/invoices` | STORE_ADMIN, STORE_SELLER | Crear factura |
+| PATCH | `/api/invoices/:id/cancel` | STORE_ADMIN | Cancelar factura |
 
-**Respuesta 200:**
+**Body POST:**
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "invoice_number": "001-001-000000001",
-      "issue_date": "2026-04-17T10:30:00Z",
-      "subtotal": "3.30",
-      "tax_amount": "0.50",
-      "total": "3.80",
-      "status": "ISSUED",
-      "customer": { "full_name": "Carlos Mendoza", "document_number": "1712345678" },
-      "created_by_user": { "full_name": "María López" }
-    }
+  "customer_id": 1,
+  "discount_percentage": 5,
+  "items": [
+    { "product_id": 1, "quantity": 3 },
+    { "product_id": 2, "quantity": 2 }
   ]
 }
 ```
 
----
+> `customer_id` es opcional (usa Consumidor Final si se omite).  
+> `discount_percentage` es opcional (0–100).
 
-#### `GET /api/invoices/:id`
-Obtener factura con todos sus ítems.
+Proceso interno de creación:
+1. Valida que cada producto exista, esté `ACTIVE` y tenga stock suficiente.
+2. Calcula subtotal, impuesto y total por línea.
+3. Aplica descuento global si se envía `discount_percentage`.
+4. Genera número de factura correlativo por empresa (`001-001-XXXXXXXXX`).
+5. Crea `invoice` + `invoice_details` + `inventory_movements` (tipo `SALE`) en una única transacción.
 
-**Respuesta 200:**
+**Respuesta detalle de factura:**
 ```json
 {
   "success": true,
   "data": {
     "id": 1,
     "invoice_number": "001-001-000000001",
-    "subtotal": "3.30", "tax_amount": "0.50", "total": "3.80",
+    "subtotal": "3.30",
+    "discount_amount": "0.17",
+    "tax_amount": "0.47",
+    "total": "3.60",
     "status": "ISSUED",
     "customer": { "full_name": "Carlos Mendoza" },
     "details": [
@@ -680,7 +613,6 @@ Obtener factura con todos sus ítems.
         "quantity": 3,
         "unit_price": "1.10",
         "tax_percentage": "15.00",
-        "tax_amount": "0.50",
         "line_subtotal": "3.30",
         "line_total": "3.80"
       }
@@ -691,212 +623,284 @@ Obtener factura con todos sus ítems.
 
 ---
 
-#### `POST /api/invoices`
-Crear factura con ítems. **Roles:** STORE_ADMIN, STORE_SELLER.
+### 10.10 Cobros de facturas — `/api/invoice-payments`
 
-Proceso interno:
-1. Valida que cada producto exista y esté `ACTIVE`.
-2. Valida stock disponible por producto.
-3. Calcula subtotal, impuesto y total por línea.
-4. Genera número de factura (`001-001-XXXXXXXXX`).
-5. Crea `invoice` + `invoice_details`.
-6. Descuenta stock y registra `inventory_movements` (tipo `SALE`).
-7. Todo en una única transacción PostgreSQL.
+Requiere módulo `MOD_PAYMENTS`.
 
-**Body:**
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/invoice-payments` | STORE_ADMIN, STORE_SELLER + plataforma | Listar cobros |
+| GET | `/api/invoice-payments/:id` | STORE_ADMIN, STORE_SELLER + plataforma | Detalle |
+| POST | `/api/invoice-payments` | STORE_ADMIN, STORE_SELLER | Registrar cobro |
+| DELETE | `/api/invoice-payments/:id` | STORE_ADMIN | Anular cobro |
+
+**Body POST:**
 ```json
 {
-  "customer_id": 1,
-  "items": [
-    { "product_id": 1, "quantity": 3 },
-    { "product_id": 2, "quantity": 2 }
-  ]
+  "invoice_id": 1,
+  "amount": 3.60,
+  "payment_method": "CASH",
+  "payment_date": "2026-04-17",
+  "notes": "Pago en efectivo"
 }
 ```
 
-> `customer_id` es opcional. Si se omite, se usará el Consumidor Final de la empresa.
-
-**Respuesta 201:** objeto de factura completo con detalles.
+| `payment_method` | Descripción |
+|-----------------|-------------|
+| `CASH` | Efectivo |
+| `CARD` | Tarjeta |
+| `TRANSFER` | Transferencia |
+| `CHECK` | Cheque |
 
 ---
 
-#### `PATCH /api/invoices/:id/cancel`
-Cancelar factura (cambia `status` a `CANCELLED`). **Requiere STORE_ADMIN.**
+### 10.11 Movimientos de inventario — `/api/inventory-movements`
 
-**Respuesta 200:**
+Requiere módulo `MOD_INVENTORY`.
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/inventory-movements` | Todos STORE + plataforma | Listar movimientos (`?product_id`, `?type`) |
+| GET | `/api/inventory-movements/:id` | Todos STORE + plataforma | Detalle |
+
+> Los movimientos se crean automáticamente al ajustar stock o emitir/cancelar facturas. No se crean directamente por este endpoint.
+
+---
+
+### 10.12 Caja chica — `/api/petty-cash`
+
+Requiere módulo `MOD_FINANCE`.
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/petty-cash` | STORE_ADMIN, STORE_SELLER + plataforma | Listar cajas |
+| GET | `/api/petty-cash/:id` | STORE_ADMIN, STORE_SELLER + plataforma | Detalle con movimientos |
+| POST | `/api/petty-cash` | STORE_ADMIN | Abrir caja |
+| PATCH | `/api/petty-cash/:id/close` | STORE_ADMIN | Cerrar caja |
+| POST | `/api/petty-cash/:id/movements` | STORE_ADMIN, STORE_SELLER | Agregar movimiento |
+
+**Body abrir caja:**
 ```json
-{ "success": true, "message": "Factura cancelada." }
+{ "opening_balance": 50.00, "notes": "Apertura lunes 17 de abril" }
+```
+
+**Body movimiento:**
+```json
+{
+  "type": "IN",
+  "amount": 20.00,
+  "description": "Cobro cliente"
+}
 ```
 
 ---
 
-### 4.9 Módulos — `/api/platform/modules`
+### 10.13 Categorías de egresos — `/api/expense-categories`
 
-#### `GET /api/platform/modules/public`
-Lista de módulos disponibles (sin autenticación). Para la pantalla de onboarding.
+Requiere módulo `MOD_FINANCE`.
 
-#### `GET /api/platform/modules/active`
-Módulos activos de la empresa del usuario autenticado.
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/expense-categories` | Listar |
+| GET | `/api/expense-categories/:id` | Detalle |
+| POST | `/api/expense-categories` | Crear |
+| PUT | `/api/expense-categories/:id` | Actualizar |
+| DELETE | `/api/expense-categories/:id` | Eliminar |
 
-#### `GET /api/platform/modules/company-catalog`
-Catálogo completo de módulos con estado por empresa: `active`, `pending`, `available`.
+**Body POST:**
+```json
+{ "name": "Servicios básicos", "description": "Agua, luz, internet" }
+```
 
-**Respuesta 200:**
+---
+
+### 10.14 Egresos — `/api/expenses`
+
+Requiere módulo `MOD_FINANCE`. Roles: STORE_ADMIN + plataforma.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/expenses` | Listar (`?category_id`, `?status`, `?date_from`, `?date_to`) |
+| GET | `/api/expenses/:id` | Detalle |
+| POST | `/api/expenses` | Registrar egreso |
+| PUT | `/api/expenses/:id` | Actualizar |
+| PATCH | `/api/expenses/:id/cancel` | Cancelar egreso |
+| DELETE | `/api/expenses/:id` | Eliminar |
+
+**Body POST:**
+```json
+{
+  "category_id": 1,
+  "amount": 150.00,
+  "description": "Factura de luz — abril",
+  "expense_date": "2026-04-30",
+  "due_date": "2026-05-05"
+}
+```
+
+---
+
+### 10.15 Pagos de egresos — `/api/expense-payments`
+
+Requiere módulo `MOD_FINANCE`.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/expense-payments` | Listar pagos |
+| GET | `/api/expense-payments/:id` | Detalle |
+| POST | `/api/expense-payments` | Registrar pago |
+| DELETE | `/api/expense-payments/:id` | Anular pago |
+
+**Body POST:**
+```json
+{
+  "expense_id": 1,
+  "amount": 150.00,
+  "payment_method": "TRANSFER",
+  "payment_date": "2026-05-01"
+}
+```
+
+---
+
+### 10.16 Presupuestos de egresos — `/api/expense-budgets`
+
+Requiere módulo `MOD_FINANCE`. Solo STORE_ADMIN.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/expense-budgets` | Listar presupuestos (`?year`, `?month`) |
+| GET | `/api/expense-budgets/:id` | Detalle con ejecución vs presupuesto |
+| POST | `/api/expense-budgets` | Crear presupuesto |
+| PUT | `/api/expense-budgets/:id` | Actualizar |
+| DELETE | `/api/expense-budgets/:id` | Eliminar |
+
+**Body POST:**
+```json
+{
+  "category_id": 1,
+  "year": 2026,
+  "month": 4,
+  "amount": 500.00
+}
+```
+
+---
+
+### 10.17 Egresos recurrentes — `/api/expense-recurring`
+
+Requiere módulo `MOD_FINANCE`. Solo STORE_ADMIN.
+
+Plantillas que el job cron procesa para generar egresos automáticamente.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/expense-recurring` | Listar plantillas |
+| GET | `/api/expense-recurring/:id` | Detalle |
+| POST | `/api/expense-recurring` | Crear plantilla |
+| PUT | `/api/expense-recurring/:id` | Actualizar |
+| PATCH | `/api/expense-recurring/:id/activate` | Activar plantilla |
+| PATCH | `/api/expense-recurring/:id/deactivate` | Desactivar |
+| DELETE | `/api/expense-recurring/:id` | Eliminar |
+
+**Body POST:**
+```json
+{
+  "category_id": 1,
+  "amount": 45.00,
+  "description": "Suscripción internet",
+  "frequency": "MONTHLY",
+  "day_of_month": 1,
+  "start_date": "2026-01-01"
+}
+```
+
+| `frequency` | Descripción |
+|-------------|-------------|
+| `MONTHLY` | Una vez al mes |
+| `WEEKLY` | Una vez a la semana |
+| `BIWEEKLY` | Cada dos semanas |
+
+---
+
+### 10.18 Módulos (plataforma) — `/api/platform/modules`
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/api/platform/modules/public` | Sin auth | Módulos disponibles (para onboarding) |
+| GET | `/api/platform/modules/active` | Autenticado | Módulos activos de la empresa |
+| GET | `/api/platform/modules/company-catalog` | Autenticado | Catálogo con estado por empresa |
+| GET | `/api/platform/modules` | PLATFORM | Todos los módulos del sistema |
+| GET | `/api/platform/modules/:id` | PLATFORM | Detalle de módulo |
+
+**Respuesta `company-catalog`:**
 ```json
 {
   "success": true,
   "data": [
     { "id": 1, "code": "MOD_INVOICING", "name": "Facturación", "status": "active" },
     { "id": 2, "code": "MOD_INVENTORY", "name": "Inventario",  "status": "pending" },
-    { "id": 3, "code": "MOD_REPORTS",   "name": "Reportes",    "status": "available" }
-  ]
-}
-```
-
-#### `GET /api/platform/modules` *(PLATFORM)*
-Lista todos los módulos del sistema.
-
-#### `GET /api/platform/modules/:id` *(PLATFORM)*
-Detalle de un módulo.
-
----
-
-### 4.10 Solicitudes de módulos — `/api/module-requests`
-
-#### `GET /api/module-requests` *(STORE_ADMIN)*
-Solicitudes de módulos de la empresa.
-
-#### `POST /api/module-requests` *(STORE_ADMIN)*
-Solicitar activación de un módulo.
-
-**Body:**
-```json
-{ "module_id": 3, "comments": "Necesitamos el módulo de reportes." }
-```
-
-**Respuesta 201:**
-```json
-{
-  "success": true,
-  "data": { "id": 5, "status": "PENDING", "module": { "name": "Reportes" } }
-}
-```
-
----
-
-#### `GET /api/module-requests/all` *(PLATFORM)*
-Lista todas las solicitudes de todas las empresas. Query params: `status`, `page`, `limit`.
-
-#### `PATCH /api/module-requests/:id/approve` *(PLATFORM_ADMIN)*
-Aprobar solicitud. Activa el módulo para la empresa (`company_modules`).
-
-#### `PATCH /api/module-requests/:id/reject` *(PLATFORM_ADMIN)*
-Rechazar solicitud.
-
-**Body:**
-```json
-{ "comments": "El módulo no aplica para su plan actual." }
-```
-
----
-
-### 4.11 Usuarios de plataforma — `/api/platform/users`
-
-Todos requieren `PLATFORM_ADMIN`.
-
-#### `GET /api/platform/users`
-Listar usuarios de plataforma (`company_id IS NULL`).
-
-#### `POST /api/platform/users`
-Crear usuario de soporte.
-
-**Body:**
-```json
-{
-  "full_name": "Soporte 2",
-  "email": "soporte2@pymeflowec.com",
-  "password": "Password123!",
-  "role_id": 2
-}
-```
-
-> `role_id` debe corresponder a un rol con `scope=PLATFORM`.
-
-#### `PATCH /api/platform/users/:id/activate`
-#### `PATCH /api/platform/users/:id/deactivate`
-#### `PATCH /api/platform/users/:id/lock`
-Cambiar estado. No puede modificarse a sí mismo.
-
-#### `GET /api/platform/users/companies/:id/users` *(PLATFORM)*
-Listar usuarios de una empresa específica (solo lectura, para soporte y admin).
-
----
-
-### 4.12 Roles — `/api/roles`
-
-#### `GET /api/roles`
-Devuelve los roles con `scope=STORE`. Usado para poblar el selector al crear usuarios de tienda.
-
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    { "id": 3, "name": "STORE_ADMIN",     "scope": "STORE" },
-    { "id": 4, "name": "STORE_SELLER",    "scope": "STORE" },
-    { "id": 5, "name": "STORE_WAREHOUSE", "scope": "STORE" }
+    { "id": 3, "code": "MOD_FINANCE",   "name": "Finanzas",    "status": "available" }
   ]
 }
 ```
 
 ---
 
-### 4.13 Logs de auditoría — `/api/audit-logs`
+### 10.19 Solicitudes de módulos — `/api/module-requests`
 
-Requiere scope `PLATFORM`.
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/module-requests` | STORE_ADMIN | Solicitudes de la empresa |
+| POST | `/api/module-requests` | STORE_ADMIN | Solicitar módulo |
+| GET | `/api/module-requests/all` | PLATFORM | Todas las solicitudes |
+| PATCH | `/api/module-requests/:id/approve` | PLATFORM_ADMIN | Aprobar → activa módulo |
+| PATCH | `/api/module-requests/:id/reject` | PLATFORM_ADMIN | Rechazar |
+
+**Body POST:**
+```json
+{ "module_id": 3, "comments": "Necesitamos el módulo de finanzas." }
+```
+
+---
+
+### 10.20 Usuarios de plataforma — `/api/platform/users`
+
+Requieren `PLATFORM_ADMIN` salvo lectura.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/platform/users` | Listar usuarios de plataforma |
+| POST | `/api/platform/users` | Crear usuario de soporte |
+| PATCH | `/api/platform/users/:id/activate` | Activar |
+| PATCH | `/api/platform/users/:id/deactivate` | Desactivar |
+| PATCH | `/api/platform/users/:id/lock` | Bloquear |
+| GET | `/api/platform/companies/:id/users` | Usuarios de una empresa (PLATFORM) |
+
+---
+
+### 10.21 Logs de auditoría — `/api/audit-logs`
+
+Requiere scope PLATFORM.
 
 #### `GET /api/audit-logs`
-Consultar logs. Soporta múltiples filtros.
 
 **Query params:**
 
 | Param | Tipo | Descripción |
 |-------|------|-------------|
 | `company_id` | number | Filtrar por empresa |
-| `action` | string | Tipo de acción (`INSERT`, `UPDATE`, `DELETE`) |
+| `action` | string | `INSERT`, `UPDATE`, `DELETE` |
 | `table_name` | string | Tabla auditada |
 | `date_from` | ISO date | Fecha inicio |
 | `date_to` | ISO date | Fecha fin |
 | `search` | string | Búsqueda libre |
 | `page` | number | Página (default 1) |
-| `limit` | number | Registros por página (default 50) |
-
-**Respuesta 200:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 10,
-      "company_id": 1,
-      "user_id": 4,
-      "action": "INSERT",
-      "table_name": "invoices",
-      "record_id": 1,
-      "old_values": null,
-      "new_values": { "invoice_number": "001-001-000000001", "total": "3.80" },
-      "ip_address": "192.168.1.100",
-      "user_agent": "Mozilla/5.0...",
-      "created_at": "2026-04-17T10:30:00Z"
-    }
-  ],
-  "total": 150, "page": 1, "limit": 50, "pages": 3
-}
-```
+| `limit` | number | Por página (default 50) |
 
 ---
 
-## 5. Modelos de base de datos
+## 11. Modelos de base de datos
 
 Todos los modelos están en el schema `erp`.
 
@@ -907,113 +911,157 @@ Todos los modelos están en el schema `erp`.
 | `User` | `users` | ✓ | Usuario de plataforma o de tienda |
 | `Module` | `modules` | — | Catálogo global de módulos del ERP |
 | `CompanyModule` | `company_modules` | — | Módulos activos por empresa |
-| `CompanyModuleRequest` | `company_module_requests` | — | Solicitudes de activación de módulos |
-| `StoreCustomer` | `store_customers` | ✓ | Clientes de una tienda |
-| `Supplier` | `suppliers` | ✓ | Proveedores de una tienda |
+| `CompanyModuleRequest` | `company_module_requests` | — | Solicitudes de activación |
+| `StoreCustomer` | `store_customers` | ✓ | Clientes de tienda |
+| `Supplier` | `suppliers` | ✓ | Proveedores de tienda |
 | `TaxRate` | `tax_rates` | — | Tasas de IVA por empresa |
 | `Product` | `products` | ✓ | Catálogo de productos con stock |
 | `Invoice` | `invoices` | ✓ | Facturas emitidas |
 | `InvoiceDetail` | `invoice_details` | — | Líneas de cada factura |
+| `InvoicePayment` | `invoice_payments` | ✓ | Cobros asociados a facturas |
 | `InventoryMovement` | `inventory_movements` | — | Historial de movimientos de stock |
-| `AuditLog` | `audit_logs` | — | Trazabilidad de cambios (poblada por triggers PostgreSQL) |
+| `PettyCash` | `petty_cash` | — | Cajas chicas (apertura/cierre) |
+| `PettyCashMovement` | `petty_cash_movements` | — | Movimientos de caja chica |
+| `ExpenseCategory` | `expense_categories` | — | Categorías de egresos |
+| `Expense` | `expenses` | ✓ | Egresos registrados |
+| `ExpensePayment` | `expense_payments` | ✓ | Pagos de egresos |
+| `ExpenseBudget` | `expense_budgets` | — | Presupuestos mensuales por categoría |
+| `ExpenseRecurring` | `expense_recurring` | — | Plantillas de egresos recurrentes |
+| `AuditLog` | `audit_logs` | — | Trazabilidad (poblada por triggers PostgreSQL) |
 | `SystemLog` | `system_logs` | — | Logs técnicos del servidor |
 
-### Campos clave por modelo
-
-**`users`**  
-`id`, `company_id` (NULL → plataforma), `role_id`, `full_name`, `email` (UNIQUE), `password_hash`, `status` (ACTIVE/INACTIVE/LOCKED)
-
-**`products`**  
-`id`, `company_id`, `supplier_id`, `tax_rate_id`, `sku`, `name`, `purchase_price`, `sale_price`, `stock`, `min_stock`, `status`
+### Campos clave
 
 **`invoices`**  
-`id`, `company_id`, `customer_id`, `created_by`, `invoice_number`, `issue_date`, `subtotal`, `tax_amount`, `total`, `status` (ISSUED/CANCELLED)
+`id`, `company_id`, `customer_id`, `created_by`, `invoice_number`, `issue_date`, `subtotal`, `discount_percentage`, `discount_amount`, `tax_amount`, `total`, `status` (ISSUED/CANCELLED)
 
 **`invoice_details`**  
-`id`, `invoice_id`, `company_id`, `product_id`, `tax_rate_id`, `product_name`, `quantity`, `unit_price`, `tax_percentage`, `tax_amount`, `line_subtotal`, `line_total`
+`id`, `invoice_id`, `product_id`, `tax_rate_id`, `product_name`, `quantity`, `unit_price`, `tax_percentage`, `tax_amount`, `line_subtotal`, `line_total`
 
-**`inventory_movements`**  
-`id`, `company_id`, `product_id`, `movement_type` (IN/OUT/ADJUSTMENT), `quantity`, `reference_type` (PURCHASE/SALE/MANUAL), `reference_id`, `notes`, `created_by`
+**`petty_cash`**  
+`id`, `company_id`, `opened_by`, `closed_by`, `opening_balance`, `closing_balance`, `status` (OPEN/CLOSED), `opened_at`, `closed_at`
+
+**`expenses`**  
+`id`, `company_id`, `category_id`, `amount`, `description`, `expense_date`, `due_date`, `status` (PENDING/PAID/CANCELLED), `is_recurring`
 
 ---
 
-## 6. Servicios — lógica de negocio
+## 12. Servicios — lógica de negocio
 
-| Servicio | Responsabilidad principal |
-|----------|--------------------------|
-| `auth.service.js` | Login, registro, refresh de token, cambio de contraseña, generación de JWT |
-| `user.service.js` | CRUD de usuarios de tienda, cambio de estado, validación de scope de rol |
-| `company.service.js` | CRUD de empresas, cambio de estado (plataforma) |
-| `product.service.js` | CRUD de productos, ajuste de stock con movimiento de inventario |
-| `invoice.service.js` | Creación de facturas con validación de stock, cálculo de impuestos, descuento de inventario, todo en transacción |
-| `storeCustomer.service.js` | CRUD de clientes de tienda |
+| Servicio | Responsabilidad |
+|----------|----------------|
+| `auth.service.js` | Login, registro, refresh de token, JWT |
+| `user.service.js` | CRUD de usuarios de tienda, cambio de estado |
+| `company.service.js` | CRUD de empresas (plataforma) |
+| `product.service.js` | CRUD de productos, ajuste de stock |
+| `storeCustomer.service.js` | CRUD de clientes |
 | `supplier.service.js` | CRUD de proveedores |
 | `taxRate.service.js` | CRUD de tasas de IVA |
-| `module.service.js` | Consulta de módulos, catálogo con estado por empresa |
-| `moduleRequest.service.js` | Solicitar/aprobar/rechazar módulos; al aprobar activa `company_modules` |
+| `invoice.service.js` | Creación de facturas (transacción: calcular, descontar stock, registrar movimientos), cancelación |
+| `invoicePayment.service.js` | Cobros de facturas, anulación |
+| `inventoryMovement.service.js` | Consulta del historial de movimientos |
+| `pettyCash.service.js` | Apertura/cierre de caja, movimientos |
+| `expenseCategory.service.js` | CRUD de categorías |
+| `expense.service.js` | CRUD de egresos, cancelación |
+| `expensePayment.service.js` | Pagos de egresos |
+| `expenseBudget.service.js` | Presupuestos mensuales |
+| `expenseRecurring.service.js` | Plantillas de egresos recurrentes |
+| `module.service.js` | Catálogo de módulos con estado por empresa |
+| `moduleRequest.service.js` | Solicitar/aprobar/rechazar módulos |
 | `auditLog.service.js` | Consulta filtrada de logs de auditoría |
 
 ---
 
-## 7. Formato de respuesta
+## 13. Tareas programadas (cron jobs)
 
-### Éxito — lista paginada
+| Job | Horario | Acción |
+|-----|---------|--------|
+| `expireModules.job.js` | Diario 00:00 | Marca como expirados los `CompanyModule` con fecha vencida |
+| `recurringExpenses.job.js` | Diario 01:00 | Genera egresos automáticos desde plantillas `ExpenseRecurring` activas |
+
+---
+
+## 14. Formato de respuesta
+
+### Lista paginada
+
 ```json
 {
   "success": true,
   "data": [...],
-  "total": 100,
-  "page": 1,
-  "limit": 20,
-  "pages": 5
+  "pagination": {
+    "total": 100,
+    "total_pages": 5,
+    "current_page": 1,
+    "per_page": 20
+  }
 }
 ```
 
-### Éxito — objeto único
+### Objeto único
+
 ```json
-{
-  "success": true,
-  "data": { ... }
-}
+{ "success": true, "data": { ... } }
 ```
 
 ### Error de validación (422)
+
 ```json
 {
   "success": false,
   "errors": [
-    { "field": "email", "message": "Email inválido." },
-    { "field": "password", "message": "Mínimo 8 caracteres." }
+    { "field": "email", "message": "Email inválido." }
   ]
 }
 ```
 
 ### Error de negocio (400 / 403 / 404 / 409)
+
 ```json
-{
-  "success": false,
-  "message": "El producto no tiene stock suficiente."
-}
+{ "success": false, "message": "El producto no tiene stock suficiente." }
 ```
 
 ---
 
-## 8. Variables de entorno
+## 15. Variables de entorno
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `NODE_ENV` | Entorno (`development` / `production`) | `development` |
-| `PORT` | Puerto del servidor | `3000` |
-| `DB_HOST` | Host de PostgreSQL | `localhost` |
-| `DB_PORT` | Puerto de PostgreSQL | `5432` |
+| `NODE_ENV` | Entorno | `development` |
+| `PORT` | Puerto del servidor | `8080` |
+| `FRONTEND_URL` | URL del frontend (CORS) | `http://localhost:5173` |
+| `API_BASE_URL` | URL pública de la API (Swagger en prod) | `https://api.tudominio.com` |
+| `DB_HOST` | Host PostgreSQL | `localhost` |
+| `DB_PORT` | Puerto PostgreSQL | `5432` |
 | `DB_NAME` | Nombre de la base de datos | `pymeflowec` |
-| `DB_USER` | Usuario de PostgreSQL | `postgres` |
-| `DB_PASS` | Contraseña de PostgreSQL | `secret` |
-| `JWT_SECRET` | Secreto para access tokens | `super-secret-key` |
-| `JWT_REFRESH_SECRET` | Secreto para refresh tokens | `another-secret` |
-| `FRONTEND_URL` | URL del frontend para CORS | `http://localhost:5173` |
-| `REDIS_URL` | URL de Redis (opcional, para rate limiting) | `redis://localhost:6379` |
-| `SMTP_HOST` | Host SMTP para emails | `smtp.gmail.com` |
+| `DB_USER` | Usuario PostgreSQL | `postgres` |
+| `DB_PASS` | Contraseña PostgreSQL | `secret` |
+| `JWT_SECRET` | Secreto access token (≥32 chars) | `super-secret-key-32chars` |
+| `JWT_REFRESH_SECRET` | Secreto refresh token (≥32 chars) | `another-secret-32chars` |
+| `JWT_EXPIRES_IN` | Duración access token | `8h` |
+| `JWT_REFRESH_EXPIRES_IN` | Duración refresh token | `7d` |
+| `REDIS_URL` | URL de Redis (opcional) | `redis://localhost:6379` |
+| `RATE_LIMIT_WINDOW_MS` | Ventana rate limit global (ms) | `900000` |
+| `RATE_LIMIT_MAX` | Máx. requests por ventana | `300` |
+| `SMTP_HOST` | Host SMTP | `smtp.gmail.com` |
 | `SMTP_PORT` | Puerto SMTP | `587` |
 | `SMTP_USER` | Usuario SMTP | `no-reply@pymeflowec.com` |
 | `SMTP_PASS` | Contraseña SMTP | `app-password` |
+
+---
+
+## Frontend
+
+El frontend de este proyecto se encuentra en:
+
+```
+C:\Users\navas\OneDrive\Escritorio\Tesis\Tesis\pymeflowec-front
+```
+
+Espera que el backend corra en `http://localhost:8080` durante desarrollo.
+
+---
+
+## Licencia
+
+Proyecto académico de tesis — Fernando Navas. Todos los derechos reservados.
