@@ -53,4 +53,18 @@ const suspend = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { list, getById, create, update, activate, deactivate, suspend };
+const getMyInvoiceSettings = async (req, res, next) => {
+  try {
+    const data = await service.getMyInvoiceSettings(req.user.company_id);
+    res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+const updateMyInvoiceSettings = async (req, res, next) => {
+  try {
+    const data = await service.updateMyInvoiceSettings(req.user.company_id, req.body);
+    res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+module.exports = { list, getById, create, update, activate, deactivate, suspend, getMyInvoiceSettings, updateMyInvoiceSettings };

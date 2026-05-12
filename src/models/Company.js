@@ -24,6 +24,11 @@ const Company = sequelize.define('Company', {
   email:   { type: DataTypes.STRING(150), allowNull: true, validate: { isEmail: true } },
   phone:   { type: DataTypes.STRING(20),  allowNull: true },
   address: { type: DataTypes.STRING(255), allowNull: true },
+  invoice_settings: {
+    type:         DataTypes.JSONB,
+    allowNull:    false,
+    defaultValue: {},
+  },
   status: {
     type:         DataTypes.STRING(20),
     allowNull:    false,

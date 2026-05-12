@@ -3,6 +3,7 @@
 const router       = require('express').Router();
 const controller   = require('../controllers/company.controller');
 const authenticate = require('../middlewares/authenticate');
+const authorize    = require('../middlewares/authorize');
 const { requirePlatform, requirePlatformAdmin } = require('../middlewares/platformAuth');
 
 /**
@@ -129,6 +130,10 @@ const { requirePlatform, requirePlatformAdmin } = require('../middlewares/platfo
  *       200:
  *         description: Empresa suspendida
  */
+
+// ── Configuración de factura — STORE_ADMIN de la propia empresa ──────────────
+router.get('/my-invoice-settings',    authenticate, authorize('STORE_ADMIN'), controller.getMyInvoiceSettings);
+router.patch('/my-invoice-settings',  authenticate, authorize('STORE_ADMIN'), controller.updateMyInvoiceSettings);
 
 // Lectura: cualquier usuario de plataforma; escritura: solo PLATFORM_ADMIN
 router.get('/',               authenticate, requirePlatform,      controller.list);

@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const {
   Invoice, InvoiceDetail, InvoicePayment, Product, StoreCustomer, User,
-  TaxRate, InventoryMovement, CompanyModule, Module, ExpenseCategory, Expense,
+  TaxRate, InventoryMovement, CompanyModule, Module, ExpenseCategory, Expense, Company,
 } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
@@ -50,22 +50,29 @@ const invoiceInclude = [
   { model: User,          as: 'createdBy', attributes: ['id', 'full_name'] },
 ];
 
-// Genera número correlativo: 001-001-000000001
+// Genera número correlativo: XXX-YYY-000000001 (XXX/YYY configurables en invoice_settings)
 const generateInvoiceNumber = async (companyId, transaction) => {
-  const last = await Invoice.findOne({
-    where:       { company_id: companyId },
-    order:       [['id', 'DESC']],
-    lock:        transaction.LOCK.UPDATE,
-    transaction,
-    paranoid:    false,
-  });
+  const [company, last] = await Promise.all([
+    Company.findByPk(companyId, { attributes: ['invoice_settings'], transaction }),
+    Invoice.findOne({
+      where:    { company_id: companyId },
+      order:    [['id', 'DESC']],
+      lock:     transaction.LOCK.UPDATE,
+      transaction,
+      paranoid: false,
+    }),
+  ]);
+
+  const settings      = company?.invoice_settings ?? {};
+  const establishment = settings.establishment  ?? '001';
+  const emissionPoint = settings.emission_point ?? '001';
 
   const next = last
     ? parseInt(last.invoice_number.split('-')[2], 10) + 1
     : 1;
 
   const seq = String(next).padStart(9, '0');
-  return `001-001-${seq}`;
+  return `${establishment}-${emissionPoint}-${seq}`;
 };
 
 const list = async (companyId, { limit, offset } = {}) => {
@@ -196,7 +203,16 @@ const create = async (data, companyId, userId) => {
 
 const cancel = async (id, companyId, userId) => {
   await sequelize.transaction(async (t) => {
-    // Cargar factura con ítems (lock para evitar doble cancelación concurrente)
+    // Lock solo la fila de la factura (sin includes — FOR UPDATE no funciona con outer joins)
+    const invoiceRow = await Invoice.findOne({
+      where:       { id, company_id: companyId },
+      lock:        t.LOCK.UPDATE,
+      transaction: t,
+    });
+    if (!invoiceRow) throw new AppError('Factura no encontrada.', 404);
+    if (invoiceRow.status === 'CANCELLED') throw new AppError('La factura ya está cancelada.', 400);
+
+    // Cargar detalles con productos dentro de la misma transacción
     const invoice = await Invoice.findOne({
       where: { id, company_id: companyId },
       include: [{
@@ -204,11 +220,8 @@ const cancel = async (id, companyId, userId) => {
         as:      'details',
         include: [{ model: Product, as: 'product' }],
       }],
-      lock:        t.LOCK.UPDATE,
       transaction: t,
     });
-    if (!invoice) throw new AppError('Factura no encontrada.', 404);
-    if (invoice.status === 'CANCELLED') throw new AppError('La factura ya está cancelada.', 400);
 
     // Cobros activos (no anulados)
     const payments = await InvoicePayment.findAll({
@@ -280,8 +293,9 @@ const cancel = async (id, companyId, userId) => {
       }
     }
 
-    // ── 4. Cancelar la factura ────────────────────────────────────────
-    await invoice.update({ status: 'CANCELLED' }, { transaction: t });
+    // ── 4. Cancelar la factura — resetear payment_status a PENDIENTE ─
+    // (todos los cobros fueron anulados; el enum no tiene ANULADO para payment_status)
+    await invoice.update({ status: 'CANCELLED', payment_status: 'PENDIENTE' }, { transaction: t });
   });
 
   return getById(id, companyId);
