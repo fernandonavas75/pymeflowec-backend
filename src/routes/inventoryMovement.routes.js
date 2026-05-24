@@ -8,7 +8,7 @@ const { checkModuleExpiry } = require('../middlewares/checkModuleExpiry');
 const validate            = require('../middlewares/validate');
 const { createRules }     = require('../validators/inventoryMovement.validators');
 
-router.use(authenticate, checkModuleExpiry('MOD_INVENTORY'));
+router.use(authenticate, checkModuleExpiry('MOD_PRODUCTS'));
 
 /**
  * @swagger

@@ -1,10 +1,17 @@
 -- =============================================
--- PYMEFLOWEC · SEEDS v8 — UNIFICADO COMPLETO
+-- PYMEFLOWEC · SEEDS v10 — UNIFICADO COMPLETO
 -- PostgreSQL 15+
--- Ejecutar DESPUÉS de schema_tesis_v8.sql
+-- Ejecutar DESPUÉS de schema_tesis_v10.sql
 -- Contraseña demo: Admin2024!
 -- Hash bcryptjs 12 rounds:
 --   $2b$12$W7GIURDx9cfjjxu2zUNgbOrSvMlPg97GKHIw5oVAWhHAJzIwpWkga
+--
+-- Cambios respecto a seeds_v8:
+--   · Módulos ajustados a los 4 consolidados en v10
+--     (eliminados MOD_INVENTORY, MOD_PAYMENTS, MOD_SUPPLIERS,
+--      MOD_REPORTS, MOD_AUDIT, MOD_TAX)
+--   + Categorías de productos demo (product_categories)
+--   + Productos demo asignados a sus categorías
 -- =============================================
 
 SET search_path TO erp;
@@ -20,18 +27,17 @@ INSERT INTO roles (name, scope, description) VALUES
     ('STORE_WAREHOUSE',  'STORE',    'Encargado de bodega. Gestiona inventario (entradas/salidas/ajustes). No puede crear facturas.');
 
 -- =============================================
--- 2. MÓDULOS
+-- 2. MÓDULOS (4 módulos consolidados)
 -- =============================================
 INSERT INTO modules (code, name, description) VALUES
-    ('MOD_INVOICING', 'Facturación',        'Creación de facturas y gestión de clientes de la tienda.'),
-    ('MOD_INVENTORY', 'Inventario',         'Control de stock, movimientos de entrada/salida y alertas de mínimos.'),
-    ('MOD_PRODUCTS',  'Productos',          'Catálogo de productos con precios de compra/venta y proveedor.'),
-    ('MOD_SUPPLIERS', 'Proveedores',        'Registro y gestión de distribuidores/proveedores.'),
-    ('MOD_TAX',       'Impuestos',          'Configuración de tasas de IVA y otros impuestos.'),
-    ('MOD_REPORTS',   'Reportes',           'Reportes de ventas, inventario y movimientos.'),
-    ('MOD_AUDIT',     'Auditoría',          'Visualización de logs de auditoría de la empresa.'),
-    ('MOD_FINANCE',   'Módulo Financiero',  'Registro y seguimiento de egresos operacionales: arriendos, nómina, impuestos, etc.'),
-    ('MOD_PAYMENTS',  'Pagos de Facturas',  'Gestión de cobros de facturas: efectivo, transferencia, tarjeta y pago en cuotas.');
+    ('MOD_INVOICING', 'Facturación',
+        'Creación de facturas, gestión de clientes y cobros de la tienda.'),
+    ('MOD_PRODUCTS',  'Productos e Inventario',
+        'Catálogo de productos con categorías, precios y control de stock (entradas/salidas/ajustes).'),
+    ('MOD_FINANCE',   'Módulo Financiero',
+        'Registro y seguimiento de egresos operacionales: arriendos, nómina, impuestos, etc.'),
+    ('MOD_PARAMS',    'Parámetros del Sistema',
+        'Gestión de proveedores, impuestos, reportes y auditoría de la empresa.');
 
 -- =============================================
 -- 3. USUARIOS DE PLATAFORMA
@@ -80,7 +86,7 @@ INSERT INTO users (company_id, role_id, full_name, email, password_hash, status)
      '$2b$12$W7GIURDx9cfjjxu2zUNgbOrSvMlPg97GKHIw5oVAWhHAJzIwpWkga', 'ACTIVE');
 
 -- =============================================
--- 7. MÓDULOS ACTIVOS PARA LA DEMO
+-- 7. MÓDULOS ACTIVOS PARA LA DEMO (4 módulos)
 -- =============================================
 INSERT INTO company_modules (company_id, module_id, is_active, approved_by, approved_at)
 SELECT
@@ -91,8 +97,8 @@ FROM companies c
 CROSS JOIN modules m
 WHERE c.ruc = '1790012345001'
   AND m.code IN (
-      'MOD_INVOICING','MOD_INVENTORY','MOD_PRODUCTS',
-      'MOD_SUPPLIERS','MOD_TAX','MOD_FINANCE','MOD_PAYMENTS'
+      'MOD_INVOICING', 'MOD_PRODUCTS',
+      'MOD_FINANCE',   'MOD_PARAMS'
   );
 
 -- =============================================
@@ -111,38 +117,69 @@ INSERT INTO suppliers (company_id, name, ruc, phone, email) VALUES
      '0991234567', 'ventas@distnacional.com');
 
 -- =============================================
--- 10. PRODUCTOS DEMO
+-- 10. CATEGORÍAS DE PRODUCTOS DEMO  [NUEVO v10]
+-- =============================================
+INSERT INTO product_categories (company_id, name, description, status)
+SELECT c.id, cat.name, cat.description, 'ACTIVE'
+FROM companies c
+CROSS JOIN (VALUES
+    ('Granos y Cereales',  'Arroz, fideo, avena y otros granos básicos'),
+    ('Aceites y Grasas',   'Aceites vegetales, manteca y margarinas'),
+    ('Lácteos',            'Leche, queso, yogur y derivados'),
+    ('Conservas',          'Atún, sardinas y otros enlatados'),
+    ('Aseo Personal',      'Jabón, shampoo, desodorante y cuidado personal'),
+    ('Limpieza del Hogar', 'Detergentes, escobas, trapeadores y artículos de limpieza')
+) AS cat(name, description)
+WHERE c.ruc = '1790012345001';
+
+-- =============================================
+-- 11. PRODUCTOS DEMO (con categorías asignadas)
 -- =============================================
 DO $$
 DECLARE
-    v_company_id  BIGINT;
-    v_supplier_id BIGINT;
-    v_tax_rate_id BIGINT;
+    v_company_id    BIGINT;
+    v_supplier_id   BIGINT;
+    v_tax_rate_id   BIGINT;
+    v_cat_granos    BIGINT;
+    v_cat_aceites   BIGINT;
+    v_cat_lacteos   BIGINT;
+    v_cat_conservas BIGINT;
+    v_cat_aseo      BIGINT;
+    v_cat_limpieza  BIGINT;
 BEGIN
-    SELECT id INTO v_company_id  FROM erp.companies WHERE ruc = '1790012345001';
-    SELECT id INTO v_supplier_id FROM erp.suppliers WHERE company_id = v_company_id AND ruc = '1791234567001';
-    SELECT id INTO v_tax_rate_id FROM erp.tax_rates WHERE company_id = v_company_id AND is_active = TRUE LIMIT 1;
+    SELECT id INTO v_company_id  FROM erp.companies  WHERE ruc = '1790012345001';
+    SELECT id INTO v_supplier_id FROM erp.suppliers  WHERE company_id = v_company_id AND ruc = '1791234567001';
+    SELECT id INTO v_tax_rate_id FROM erp.tax_rates  WHERE company_id = v_company_id AND is_active = TRUE LIMIT 1;
 
-    INSERT INTO erp.products (company_id, supplier_id, sku, name, purchase_price, sale_price, stock, min_stock, tax_rate_id) VALUES
-        (v_company_id, v_supplier_id, 'ARR-001', 'Arroz 1kg',           0.85, 1.10, 50, 10, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'ACE-001', 'Aceite 1L',           1.80, 2.50, 30,  5, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'AZU-001', 'Azúcar 1kg',          0.75, 1.00, 40, 10, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'LEH-001', 'Leche 1L',            0.90, 1.20, 25,  5, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'FID-001', 'Fideos 500g',         0.50, 0.75, 60, 15, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'ATU-001', 'Atún en lata',        1.20, 1.75, 35,  8, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'JAB-001', 'Jabón de tocador',    0.45, 0.80, 40, 10, v_tax_rate_id),
-        (v_company_id, v_supplier_id, 'PAP-001', 'Papel higiénico x4',  1.50, 2.20, 20,  5, v_tax_rate_id);
+    SELECT id INTO v_cat_granos    FROM erp.product_categories WHERE company_id = v_company_id AND name = 'Granos y Cereales';
+    SELECT id INTO v_cat_aceites   FROM erp.product_categories WHERE company_id = v_company_id AND name = 'Aceites y Grasas';
+    SELECT id INTO v_cat_lacteos   FROM erp.product_categories WHERE company_id = v_company_id AND name = 'Lácteos';
+    SELECT id INTO v_cat_conservas FROM erp.product_categories WHERE company_id = v_company_id AND name = 'Conservas';
+    SELECT id INTO v_cat_aseo      FROM erp.product_categories WHERE company_id = v_company_id AND name = 'Aseo Personal';
+    SELECT id INTO v_cat_limpieza  FROM erp.product_categories WHERE company_id = v_company_id AND name = 'Limpieza del Hogar';
+
+    INSERT INTO erp.products
+        (company_id, supplier_id, category_id, sku, name, purchase_price, sale_price, stock, min_stock, tax_rate_id)
+    VALUES
+        (v_company_id, v_supplier_id, v_cat_granos,    'ARR-001', 'Arroz 1kg',          0.85, 1.10, 50, 10, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_aceites,   'ACE-001', 'Aceite 1L',           1.80, 2.50, 30,  5, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_granos,    'AZU-001', 'Azúcar 1kg',          0.75, 1.00, 40, 10, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_lacteos,   'LEH-001', 'Leche 1L',            0.90, 1.20, 25,  5, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_granos,    'FID-001', 'Fideos 500g',         0.50, 0.75, 60, 15, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_conservas, 'ATU-001', 'Atún en lata',        1.20, 1.75, 35,  8, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_aseo,      'JAB-001', 'Jabón de tocador',    0.45, 0.80, 40, 10, v_tax_rate_id),
+        (v_company_id, v_supplier_id, v_cat_limpieza,  'PAP-001', 'Papel higiénico x4', 1.50, 2.20, 20,  5, v_tax_rate_id);
 END $$;
 
 -- =============================================
--- 11. CLIENTE DEMO
+-- 12. CLIENTE DEMO
 -- =============================================
 INSERT INTO store_customers (company_id, customer_type, document_number, full_name, email, phone) VALUES
     ((SELECT id FROM companies WHERE ruc = '1790012345001'),
      'CEDULA', '1712345678', 'Carlos Mendoza', 'carlos@email.com', '0998765432');
 
 -- =============================================
--- 12. CATEGORÍAS DE EGRESOS
+-- 13. CATEGORÍAS DE EGRESOS
 -- =============================================
 INSERT INTO expense_categories (company_id, name, category_type, description)
 SELECT c.id, cat.name, cat.category_type, cat.description
@@ -172,7 +209,7 @@ CROSS JOIN (VALUES
 WHERE c.ruc = '1790012345001';
 
 -- =============================================
--- 13. EGRESOS DEMO + PAGOS
+-- 14. EGRESOS DEMO + PAGOS
 -- =============================================
 DO $$
 DECLARE
@@ -263,7 +300,7 @@ BEGIN
 END $$;
 
 -- =============================================
--- 14. PRESUPUESTOS DE EGRESOS
+-- 15. PRESUPUESTOS DE EGRESOS
 -- =============================================
 DO $$
 DECLARE
@@ -305,7 +342,7 @@ BEGIN
 END $$;
 
 -- =============================================
--- 15. EGRESOS RECURRENTES
+-- 16. EGRESOS RECURRENTES
 -- =============================================
 DO $$
 DECLARE
@@ -340,7 +377,7 @@ BEGIN
 END $$;
 
 -- =============================================
--- 16. CAJA CHICA
+-- 17. CAJA CHICA
 -- =============================================
 DO $$
 DECLARE
@@ -416,12 +453,16 @@ END $$;
 -- Contraseña para todos: Admin2024!
 -- Hash: $2b$12$W7GIURDx9cfjjxu2zUNgbOrSvMlPg97GKHIw5oVAWhHAJzIwpWkga
 --
--- RESUMEN DE DATOS DEMO:
---   · 5 roles, 9 módulos, 2 usuarios plataforma
+-- RESUMEN DE DATOS DEMO v10:
+--   · 5 roles
+--   · 4 módulos consolidados (MOD_INVOICING, MOD_PRODUCTS, MOD_FINANCE, MOD_PARAMS)
+--   · 2 usuarios plataforma
 --   · 1 empresa (Tienda Don Pepe, RUC 1790012345001)
 --   · 3 usuarios de tienda + Consumidor Final + 1 cliente
---   · 1 proveedor, 8 productos, IVA 15%
---   · 7 módulos activos para la empresa demo
+--   · 1 proveedor, IVA 15%
+--   · 6 categorías de productos
+--   · 8 productos (con categoría asignada)
+--   · 4 módulos activos para la empresa demo
 --   · 20 categorías de egresos
 --   · 3 egresos demo con pagos (efectivo, cuotas, tarjeta)
 --   · 14 presupuestos (10 mensuales + 4 anuales)

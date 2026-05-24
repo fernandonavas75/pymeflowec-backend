@@ -10,7 +10,7 @@ const { checkModuleExpiry }  = require('../middlewares/checkModuleExpiry');
  * @swagger
  * tags:
  *   name: Suppliers
- *   description: Proveedores de la tienda (MOD_SUPPLIERS)
+ *   description: Proveedores de la tienda (MOD_PARAMS)
  */
 
 /**
@@ -101,7 +101,7 @@ const { checkModuleExpiry }  = require('../middlewares/checkModuleExpiry');
  *         description: Proveedor eliminado
  */
 
-router.use(authenticate, checkModuleExpiry('MOD_SUPPLIERS'));
+router.use(authenticate, checkModuleExpiry('MOD_PARAMS'));
 
 router.get('/',       platformStoreAccess('STORE'),        controller.list);
 router.get('/:id',    platformStoreAccess('STORE'),        controller.getById);

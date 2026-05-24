@@ -203,8 +203,7 @@ router.get('/:id', platformStoreAccess('STORE'),        controller.getById);
 router.post('/',   platformStoreAccess('STORE_ADMIN'),  controller.create);
 router.put('/:id', platformStoreAccess('STORE_ADMIN'),  controller.update);
 
-// Stock requiere también MOD_INVENTORY además de MOD_PRODUCTS
-router.patch('/:id/stock',      checkModuleExpiry('MOD_INVENTORY'), platformStoreAccess('STORE_ADMIN', 'STORE_WAREHOUSE'), controller.adjustStock);
+router.patch('/:id/stock',      platformStoreAccess('STORE_ADMIN', 'STORE_WAREHOUSE'), controller.adjustStock);
 router.patch('/:id/activate',   platformStoreAccess('STORE_ADMIN'), controller.activate);
 router.patch('/:id/deactivate', platformStoreAccess('STORE_ADMIN'), controller.deactivate);
 router.delete('/:id',           platformStoreAccess('STORE_ADMIN'), controller.remove);

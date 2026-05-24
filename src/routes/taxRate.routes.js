@@ -18,7 +18,7 @@ const validate = (req, res, next) => {
  * @swagger
  * tags:
  *   name: TaxRates
- *   description: Tasas de impuesto de la tienda (MOD_TAX)
+ *   description: Tasas de impuesto de la tienda (MOD_PARAMS)
  */
 
 /**
@@ -86,7 +86,7 @@ const validate = (req, res, next) => {
  *         description: Tasa actualizada
  */
 
-router.use(authenticate, checkModuleExpiry('MOD_TAX'));
+router.use(authenticate, checkModuleExpiry('MOD_PARAMS'));
 
 router.get('/',    platformStoreAccess('STORE'),        controller.list);
 router.get('/:id', platformStoreAccess('STORE'),        controller.getById);

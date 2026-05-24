@@ -9,6 +9,7 @@ const CompanyModuleRequest = require('./CompanyModuleRequest');
 const Supplier             = require('./Supplier');
 const StoreCustomer        = require('./StoreCustomer');
 const TaxRate              = require('./TaxRate');
+const ProductCategory      = require('./ProductCategory');
 const Product              = require('./Product');
 const Invoice              = require('./Invoice');
 const InvoiceDetail        = require('./InvoiceDetail');
@@ -39,6 +40,7 @@ const companyHasMany = (Model, as) =>
 companyHasMany(Supplier,          'suppliers');
 companyHasMany(StoreCustomer,     'customers');
 companyHasMany(TaxRate,           'taxRates');
+companyHasMany(ProductCategory,   'productCategories');
 companyHasMany(Product,           'products');
 companyHasMany(Invoice,           'invoices');
 companyHasMany(InvoicePayment,    'invoicePayments');
@@ -58,10 +60,14 @@ companyHasMany(CompanyModuleRequest, 'moduleRequests');
 const belongsToCompany = (Model) =>
   Model.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 
-[Supplier, StoreCustomer, TaxRate, Product, Invoice, InvoicePayment,
+[Supplier, StoreCustomer, TaxRate, ProductCategory, Product, Invoice, InvoicePayment,
  InventoryMovement, ExpenseCategory, Expense, ExpensePayment,
  ExpenseBudget, ExpenseRecurring, PettyCash, PettyCashMovement,
  AuditLog, SystemLog, CompanyModule, CompanyModuleRequest].forEach(belongsToCompany);
+
+// ── ProductCategory ↔ Product ─────────────────────────────────────
+ProductCategory.hasMany(Product,          { foreignKey: 'category_id', as: 'products' });
+Product.belongsTo(ProductCategory,        { foreignKey: 'category_id', as: 'category' });
 
 // ── Supplier ↔ Product ────────────────────────────────────────────
 Supplier.hasMany(Product,   { foreignKey: 'supplier_id', as: 'products' });
@@ -182,7 +188,7 @@ module.exports = {
   Company, Role, User,
   Module, CompanyModule, CompanyModuleRequest,
   Supplier, StoreCustomer, TaxRate,
-  Product, Invoice, InvoiceDetail, InvoicePayment,
+  ProductCategory, Product, Invoice, InvoiceDetail, InvoicePayment,
   InventoryMovement,
   ExpenseCategory, Expense, ExpensePayment,
   ExpenseBudget, ExpenseRecurring,

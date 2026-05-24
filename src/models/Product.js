@@ -10,6 +10,7 @@ const Product = sequelize.define('Product', {
     primaryKey:    true,
   },
   company_id:   { type: DataTypes.BIGINT, allowNull: false },
+  category_id:  { type: DataTypes.BIGINT, allowNull: true  },
   supplier_id:  { type: DataTypes.BIGINT, allowNull: true  },
   tax_rate_id:  { type: DataTypes.BIGINT, allowNull: true  },
   sku: {

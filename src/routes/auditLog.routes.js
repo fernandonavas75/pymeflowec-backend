@@ -5,6 +5,7 @@ const controller            = require('../controllers/auditLog.controller');
 const authenticate          = require('../middlewares/authenticate');
 const { requirePlatform }   = require('../middlewares/platformAuth');
 const platformStoreAccess   = require('../middlewares/platformStoreAccess');
+const { checkModuleExpiry } = require('../middlewares/checkModuleExpiry');
 
 /**
  * @swagger
@@ -87,6 +88,6 @@ router.get('/', authenticate, requirePlatform, controller.list);
  *       200:
  *         description: Lista paginada de actividad de la empresa
  */
-router.get('/my-company', authenticate, platformStoreAccess('STORE_ADMIN'), controller.listMyCompany);
+router.get('/my-company', authenticate, checkModuleExpiry('MOD_PARAMS'), platformStoreAccess('STORE_ADMIN'), controller.listMyCompany);
 
 module.exports = router;

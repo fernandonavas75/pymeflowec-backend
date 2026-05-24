@@ -1,11 +1,12 @@
 'use strict';
 
-const { Product, Supplier, TaxRate, InventoryMovement } = require('../models');
+const { Product, ProductCategory, Supplier, TaxRate, InventoryMovement } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 
 const productInclude = [
-  { model: Supplier, as: 'supplier', attributes: ['id', 'name'] },
-  { model: TaxRate,  as: 'taxRate',  attributes: ['id', 'tax_name', 'percentage'] },
+  { model: ProductCategory, as: 'category', attributes: ['id', 'name'] },
+  { model: Supplier,        as: 'supplier', attributes: ['id', 'name'] },
+  { model: TaxRate,         as: 'taxRate',  attributes: ['id', 'tax_name', 'percentage'] },
 ];
 
 const list = async (companyId, { limit, offset } = {}) => {
@@ -28,9 +29,13 @@ const getById = async (id, companyId) => {
 };
 
 const create = async (data, companyId) => {
-  const { name, description, sku, supplier_id, tax_rate_id,
+  const { name, description, sku, category_id, supplier_id, tax_rate_id,
           purchase_price, sale_price, stock, min_stock } = data;
 
+  if (category_id) {
+    const cat = await ProductCategory.findOne({ where: { id: category_id, company_id: companyId } });
+    if (!cat) throw new AppError('Categoría no encontrada.', 404);
+  }
   if (supplier_id) {
     const sup = await Supplier.findOne({ where: { id: supplier_id, company_id: companyId } });
     if (!sup) throw new AppError('Proveedor no encontrado.', 404);
@@ -42,7 +47,7 @@ const create = async (data, companyId) => {
 
   const product = await Product.create({
     company_id: companyId,
-    name, description, sku, supplier_id, tax_rate_id,
+    name, description, sku, category_id, supplier_id, tax_rate_id,
     purchase_price: purchase_price ?? 0,
     sale_price:     sale_price     ?? 0,
     stock:          stock          ?? 0,
@@ -56,10 +61,10 @@ const update = async (id, data, companyId) => {
   const product = await Product.findOne({ where: { id, company_id: companyId } });
   if (!product) throw new AppError('Producto no encontrado.', 404);
 
-  const { name, description, sku, supplier_id, tax_rate_id,
+  const { name, description, sku, category_id, supplier_id, tax_rate_id,
           purchase_price, sale_price, min_stock, status } = data;
 
-  await product.update({ name, description, sku, supplier_id, tax_rate_id,
+  await product.update({ name, description, sku, category_id, supplier_id, tax_rate_id,
                          purchase_price, sale_price, min_stock, status });
   return getById(product.id, companyId);
 };

@@ -8,13 +8,13 @@ const { checkModuleExpiry } = require('../middlewares/checkModuleExpiry');
 const validate            = require('../middlewares/validate');
 const { createRules }     = require('../validators/invoicePayment.validators');
 
-router.use(authenticate, checkModuleExpiry('MOD_PAYMENTS'));
+router.use(authenticate, checkModuleExpiry('MOD_INVOICING'));
 
 /**
  * @swagger
  * tags:
  *   name: InvoicePayments
- *   description: Cobros de facturas (MOD_PAYMENTS)
+ *   description: Cobros de facturas (MOD_INVOICING)
  */
 
 /**

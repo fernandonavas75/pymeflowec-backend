@@ -138,6 +138,7 @@ app.use('/api/users',              require('./routes/user.routes'));
 app.use('/api/customers',          require('./routes/storeCustomer.routes'));
 app.use('/api/suppliers',          require('./routes/supplier.routes'));
 app.use('/api/products',           require('./routes/product.routes'));
+app.use('/api/product-categories', require('./routes/productCategory.routes'));
 app.use('/api/tax-rates',          require('./routes/taxRate.routes'));
 app.use('/api/invoices',           require('./routes/invoice.routes'));
 app.use('/api/invoice-payments',   require('./routes/invoicePayment.routes'));

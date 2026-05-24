@@ -237,8 +237,8 @@ const cancel = async (id, companyId, userId) => {
         .toFixed(2)
     );
 
-    // ── 1. Restaurar stock si MOD_INVENTORY está activo ───────────────
-    const hasInventory = await _isModuleActive(companyId, 'MOD_INVENTORY', t);
+    // ── 1. Restaurar stock si MOD_PRODUCTS está activo ───────────────
+    const hasInventory = await _isModuleActive(companyId, 'MOD_PRODUCTS', t);
     if (hasInventory) {
       for (const detail of invoice.details) {
         await detail.product.increment('stock', { by: detail.quantity, transaction: t });
