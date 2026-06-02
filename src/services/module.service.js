@@ -47,10 +47,14 @@ const getCompanyCatalog = async (companyId) => {
   ]);
 
   const activeMap  = new Map(companyModules.map(cm => [Number(cm.module_id), cm]));
-  // Para cada módulo sólo nos interesa la solicitud más reciente
+  // Solicitud más reciente por módulo (cualquier status — para mostrar estado)
   const requestMap = new Map();
+  // Solicitud APPROVED más reciente por módulo (para revocar módulos activos)
+  const approvedRequestMap = new Map();
   for (const r of requests) {
-    if (!requestMap.has(Number(r.module_id))) requestMap.set(Number(r.module_id), r);
+    const mid = Number(r.module_id);
+    if (!requestMap.has(mid)) requestMap.set(mid, r);
+    if (r.status === 'APPROVED' && !approvedRequestMap.has(mid)) approvedRequestMap.set(mid, r);
   }
 
   const now = new Date();
@@ -71,7 +75,7 @@ const getCompanyCatalog = async (companyId) => {
     if (isActive) {
       status     = 'APPROVED';
       expires_at = cm.expires_at ?? null;
-      request_id = req?.id ?? null;
+      request_id = approvedRequestMap.get(id)?.id ?? null;
       is_trial   = cm.approved_by == null && cm.expires_at != null;
     } else if (isExpired) {
       if (req?.status === 'PENDING') {
@@ -81,7 +85,7 @@ const getCompanyCatalog = async (companyId) => {
       } else {
         status     = 'EXPIRED';
         expires_at = cm.expires_at;
-        request_id = req?.id ?? null;
+        request_id = approvedRequestMap.get(id)?.id ?? null;
         is_trial   = cm.approved_by == null;
       }
     } else if (req) {

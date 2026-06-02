@@ -18,7 +18,7 @@ const redisClient      = require('./config/redis');
 const { errorHandler } = require('./middlewares/errorHandler');
 
 const {verifyConnection} = require('./utils/mailer');
-verifyConnection();
+if (process.env.NODE_ENV !== 'test') verifyConnection();
 
 const app = express();
 
@@ -68,7 +68,10 @@ const extractUserIdFromToken = (req) => {
   return `ip:${ipKeyGenerator(req)}`;
 };
 
-const globalLimiter = rateLimit({
+const isTest = process.env.NODE_ENV === 'test';
+const passThrough = (req, res, next) => next();
+
+const globalLimiter = isTest ? passThrough : rateLimit({
   windowMs:     parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
   max:          parseInt(process.env.RATE_LIMIT_MAX, 10) || 300,
   keyGenerator: extractUserIdFromToken,
@@ -79,7 +82,7 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-const loginLimiter = rateLimit({
+const loginLimiter = isTest ? passThrough : rateLimit({
   windowMs: 15 * 60 * 1000,
   max:      10,
   standardHeaders: true,
