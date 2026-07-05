@@ -3,7 +3,7 @@
 const controller   = require('../controllers/auth.controller');
 const authenticate = require('../middlewares/authenticate');
 const validate     = require('../middlewares/validate');
-const { loginRules, refreshRules, registerRules, changePasswordRules } = require('../validators/auth.validators');
+const { loginRules, refreshRules, registerRules, changePasswordRules, updateProfileRules } = require('../validators/auth.validators');
 
 /**
  * @swagger
@@ -96,6 +96,31 @@ const { loginRules, refreshRules, registerRules, changePasswordRules } = require
 
 /**
  * @swagger
+ * /auth/me:
+ *   patch:
+ *     summary: Actualizar el propio perfil (nombre, email; rol solo STORE_ADMIN)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               full_name: { type: string }
+ *               email:     { type: string, format: email }
+ *               role_id:   { type: integer, description: "Solo STORE_ADMIN puede cambiar su rol" }
+ *     responses:
+ *       200:
+ *         description: Perfil actualizado
+ *       403:
+ *         description: Sin permisos para cambiar el rol
+ *       409:
+ *         description: Email ya registrado
+ */
+
+/**
+ * @swagger
  * /auth/change-password:
  *   patch:
  *     summary: Cambiar contraseña del usuario autenticado
@@ -122,6 +147,7 @@ module.exports = ({ loginLimiter, registerLimiter }) => {
   router.post('/register', registerLimiter, validate(registerRules), controller.register);
   router.post('/refresh',  validate(refreshRules),                controller.refresh);
   router.get('/me',        authenticate,                          controller.me);
+  router.patch('/me',      authenticate, validate(updateProfileRules), controller.updateProfile);
   router.patch('/change-password',
     authenticate,
     validate(changePasswordRules),

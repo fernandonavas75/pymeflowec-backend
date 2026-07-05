@@ -199,6 +199,38 @@ const register = async (data) => {
   };
 };
 
+// Actualización del propio perfil.
+// Datos básicos (full_name, email) para cualquier usuario autenticado;
+// role_id solo lo puede cambiar un STORE_ADMIN (staff no puede tocar su rol).
+const updateProfile = async (requester, data) => {
+  const user = await User.findByPk(requester.id);
+  if (!user) throw new AppError('Usuario no encontrado.', 404);
+
+  const updates = {};
+
+  if (data.full_name !== undefined) updates.full_name = data.full_name;
+
+  if (data.email !== undefined && data.email !== user.email) {
+    const existing = await User.findOne({ where: { email: data.email } });
+    if (existing && Number(existing.id) !== Number(user.id)) {
+      throw new AppError('El correo electrónico ya está registrado.', 409);
+    }
+    updates.email = data.email;
+  }
+
+  if (data.role_id !== undefined && data.role_id !== null && Number(data.role_id) !== Number(user.role_id)) {
+    if (requester.role?.name !== 'STORE_ADMIN') {
+      throw new AppError('No tienes permisos para cambiar tu rol.', 403);
+    }
+    const role = await Role.findOne({ where: { id: data.role_id, scope: 'STORE' } });
+    if (!role) throw new AppError('Rol inválido.', 400);
+    updates.role_id = role.id;
+  }
+
+  if (Object.keys(updates).length > 0) await user.update(updates);
+  return me(user.id);
+};
+
 const changePassword = async (userId, currentPassword, newPassword) => {
   const user = await User.findByPk(userId);
   if (!user) throw new AppError('Usuario no encontrado.', 404);
@@ -223,4 +255,4 @@ const buildUserPayload = (user) => ({
     : null,
 });
 
-module.exports = { login, me, refresh, register, changePassword };
+module.exports = { login, me, refresh, register, changePassword, updateProfile };

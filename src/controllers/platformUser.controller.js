@@ -81,7 +81,7 @@ const deactivate = async (req, res, next) => {
 
 /**
  * Lista los usuarios de una empresa específica.
- * Accesible para cualquier usuario de plataforma (PLATFORM_ADMIN o PLATFORM_STAFF).
+ * Accesible para cualquier usuario de plataforma (PLATFORM_ADMIN o PLATFORM_SUPPORT).
  */
 const listByCompany = async (req, res, next) => {
   try {
@@ -104,7 +104,7 @@ const listByCompany = async (req, res, next) => {
 };
 
 /**
- * Crea un nuevo usuario de plataforma (PLATFORM_ADMIN o PLATFORM_STAFF).
+ * Crea un nuevo usuario de plataforma (PLATFORM_ADMIN o PLATFORM_SUPPORT).
  * Solo accesible para PLATFORM_ADMIN.
  */
 const create = async (req, res, next) => {

@@ -40,4 +40,15 @@ const changePasswordRules = [
   body('new_password').isLength({ min: 8 }).withMessage('La nueva contraseña debe tener al menos 8 caracteres.'),
 ];
 
-module.exports = { loginRules, refreshRules, registerRules, changePasswordRules };
+const updateProfileRules = [
+  body('full_name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 150 }).withMessage('El nombre debe tener entre 2 y 150 caracteres.'),
+  body('email').optional().isEmail().withMessage('Email inválido.').normalizeEmail(),
+  body('role_id')
+    .optional({ nullable: true })
+    .isInt({ min: 1 }).withMessage('role_id debe ser un entero positivo.'),
+];
+
+module.exports = { loginRules, refreshRules, registerRules, changePasswordRules, updateProfileRules };

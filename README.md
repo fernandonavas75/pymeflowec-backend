@@ -192,11 +192,11 @@ El sistema es **multi-tenant**: cada usuario pertenece a una empresa (`company_i
 | `STORE_SELLER` | STORE | Crear facturas, registrar cobros, movimientos de caja |
 | `STORE_WAREHOUSE` | STORE | Ajustar stock (IN/OUT, no ADJUSTMENT) |
 | `PLATFORM_ADMIN` | PLATFORM | Gestión de empresas, usuarios y módulos |
-| `PLATFORM_STAFF` | PLATFORM | Solo lectura en modo soporte (`?company_id`) |
+| `PLATFORM_SUPPORT` | PLATFORM | Solo lectura en modo soporte (`?company_id`) |
 
 ### Matriz de acceso principal
 
-| Recurso | PLATFORM_ADMIN | PLATFORM_STAFF | STORE_ADMIN | STORE_SELLER | STORE_WAREHOUSE |
+| Recurso | PLATFORM_ADMIN | PLATFORM_SUPPORT | STORE_ADMIN | STORE_SELLER | STORE_WAREHOUSE |
 |---------|:-:|:-:|:-:|:-:|:-:|
 | `/products` GET | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `/products` POST/PUT/DELETE | ✓ | — | ✓ | — | — |
@@ -283,7 +283,7 @@ authorize('STORE_ADMIN', 'PLATFORM') // cualquiera de los dos
 Versión extendida para rutas multi-tenant:
 - **Usuario de tienda**: pasa si su rol coincide con los `storeRoles`.
 - **PLATFORM_ADMIN** + `?company_id=X`: acceso completo a la tienda.
-- **PLATFORM_STAFF** + `?company_id=X`: solo GET.
+- **PLATFORM_SUPPORT** + `?company_id=X`: solo GET.
 - **Otro caso**: 403.
 
 ### `checkModuleExpiry(moduleCode)`

@@ -36,8 +36,12 @@ if (process.env.NODE_ENV !== 'test') verifyConnection();
 
 const app = express();
 
-// Confía en el proxy de AWS ALB/ECS para IP real del cliente
-app.set('trust proxy', 1);
+// Confía en el proxy de AWS ALB/ECS para IP real del cliente — solo en producción.
+// Fuera de un entorno con proxy real, confiar en X-Forwarded-For permitiría
+// falsificar la IP y evadir el rate limiting por IP (M-09).
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 app.use(helmet());
 app.use(cors({
