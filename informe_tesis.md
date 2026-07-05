@@ -188,7 +188,15 @@ El frontend usa consistentemente **`PLATFORM_STAFF`**; el backend y los seeds us
 `=== 'PLATFORM_STAFF'` del front → se rompe la etiqueta de rol y potencialmente la lógica de UI.
 
 **Acción:** Unificar a un único nombre de rol en front, back y seeds.
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Resuelto (2026-07-05) — unificado a **`PLATFORM_SUPPORT`** (el nombre que ya vive en la BD
+vía seeds v10 y en `styles.scss` del front, por lo que no requirió migración de datos). En el front se
+corrigió el tipo `AuthUser.role.name` (`auth.model.ts`), el mapa `roleLabel` de
+`support-users-list.component.ts` (la etiqueta "Staff soporte" ahora sí matchea el rol real) y los
+comentarios en `permission.guard.ts`, `sidebar.component.ts` y `auth.service.ts`. En el back solo había
+comentarios/docs desalineados: `platformUser.controller.js`, `README.md`, `DOCUMENTACION_TECNICA.md`
+y `CLAUDE.md`; docs del front (`README.md`, `Documentacion_tecnica.md`) también actualizados. La lógica
+runtime nunca comparaba `PLATFORM_STAFF` en guards (solo `!== 'PLATFORM_ADMIN'`), así que el único bug
+funcional era la etiqueta de rol en la UI de usuarios de soporte.
 
 ---
 
@@ -199,7 +207,11 @@ El frontend usa consistentemente **`PLATFORM_STAFF`**; el backend y los seeds us
 `X-Forwarded-For` falsificable → evasión del rate limiter por IP rotando el header.
 
 **Acción:** Condicionar a `NODE_ENV === 'production'`.
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Resuelto (2026-07-05) — `app.set('trust proxy', 1)` ahora solo se aplica cuando
+`NODE_ENV === 'production'` (entorno con ALB real). En dev/test `trust proxy` queda en `false`,
+por lo que `X-Forwarded-For` falsificado ya no puede rotar la clave IP del rate limiter.
+Verificado cargando la app en ambos entornos (`false` en test, `1` en producción) y con la suite
+completa de `pymeflowec-tests`: 447/447 tests, 36 suites.
 
 ---
 
@@ -212,7 +224,21 @@ con M-08, deja la UI de soporte inconsistente.
 
 **Acción:** Revisar si `PLATFORM_STAFF/SUPPORT` debe tener las mismas capacidades de escritura de UI
 que `PLATFORM_ADMIN`.
-**Estado:** ⬜ Pendiente
+**Estado:** ✅ Resuelto (2026-07-05) — decisión: **no**, `PLATFORM_SUPPORT` es solo lectura, espejando
+el backend (`platformStoreAccess`: soporte + `?company_id` = solo GET). Cambios en el front:
+1. `permission.guard.ts` — el bypass de plataforma ahora distingue rol: `PLATFORM_ADMIN` conserva el
+   bypass total; `PLATFORM_SUPPORT` solo pasa guards de rutas de lectura y es redirigido a
+   `/dashboard` en rutas marcadas `data.writeOnly`.
+2. `app.routes.ts` — se marcaron `writeOnly: true` las rutas de escritura pura: formularios new/edit
+   de customers, products, suppliers, tax-rates y users, `invoices/new` y `settings/invoice`.
+   De paso, `customers/new|edit` e `invoices/new` no tenían `permissionGuard` y ahora lo tienen.
+3. `auth.service.ts` — nuevo computed `isPlatformSupport`.
+4. `sidebar.component.ts` — flag `writeOnly` en `NavItem`; en modo cliente, soporte no ve items de
+   escritura pura (hoy solo "Factura" → `/settings/invoice`).
+Las páginas mixtas lista+CRUD (categorías, presupuestos, caja chica, etc.) siguen visibles para
+soporte porque su parte de lectura es legítima; sus botones de escritura fallan con 403 del backend.
+Ocultar esos botones componente a componente queda como mejora de UX futura, no de seguridad.
+Verificado con `tsc --noEmit` sin errores.
 
 ---
 
@@ -243,6 +269,6 @@ que `PLATFORM_ADMIN`.
 | A-05 | `rejectUnauthorized: false` en prod | MITM a la BD | ✅ | ✅ |
 | A-06 | Suppliers sin `validate()` (B-01) | Datos inválidos | — | ✅ |
 | A-07 | forgot-password: enumeración + sin limiter | Fuga, spam | ✅ | ✅ |
-| M-08 | `PLATFORM_STAFF` vs `PLATFORM_SUPPORT` | Rol de soporte roto | ✅ | ⬜ |
-| M-09 | `trust proxy` hardcodeado | Evasión rate limit | ✅ | ⬜ |
-| M-10 | Guard de plataforma permisivo (front) | UI inconsistente | — | ⬜ |
+| M-08 | `PLATFORM_STAFF` vs `PLATFORM_SUPPORT` | Rol de soporte roto | ✅ | ✅ |
+| M-09 | `trust proxy` hardcodeado | Evasión rate limit | ✅ | ✅ |
+| M-10 | Guard de plataforma permisivo (front) | UI inconsistente | — | ✅ |
