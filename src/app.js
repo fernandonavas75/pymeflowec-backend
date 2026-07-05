@@ -1,6 +1,20 @@
 'use strict';
 
 require('dotenv').config();
+
+// Fail-fast: los secretos JWT deben existir y ser suficientemente largos (C-03 / B-02)
+for (const name of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
+  const value = process.env[name];
+  if (!value || value.length < 32) {
+    console.error(`[FATAL] La variable de entorno ${name} debe estar definida con al menos 32 caracteres.`);
+    process.exit(1);
+  }
+}
+if (process.env.JWT_SECRET === process.env.JWT_REFRESH_SECRET) {
+  console.error('[FATAL] JWT_SECRET y JWT_REFRESH_SECRET deben ser distintos.');
+  process.exit(1);
+}
+
 const express      = require('express');
 const cors         = require('cors');
 const helmet       = require('helmet');
@@ -56,15 +70,31 @@ const redisStoreOptions = (prefix) =>
     ? { store: new RedisStore({ sendCommand: (...args) => redisClient.call(...args), prefix }) }
     : {};
 
-// Extrae user ID del JWT sin hacer DB lookup — O(1), seguro para usar en keyGenerator
+// Extrae user ID del JWT sin hacer DB lookup — O(1), seguro para usar en keyGenerator.
+// Cache acotado token→key: evita repetir jwt.verify en cada request del mismo cliente
+// y acota el trabajo criptográfico que puede forzar un atacante con tokens inválidos (A-04).
+const TOKEN_KEY_CACHE_MAX = 5000;
+const tokenKeyCache = new Map();
 const extractUserIdFromToken = (req) => {
-  try {
-    const auth = req.headers.authorization;
-    if (auth?.startsWith('Bearer ')) {
-      const decoded = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
-      return `user:${decoded.id}`;
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7);
+    if (tokenKeyCache.has(token)) {
+      const cached = tokenKeyCache.get(token);
+      return cached ?? `ip:${ipKeyGenerator(req)}`;
     }
-  } catch (_) { /* token inválido o expirado → caer a IP */ }
+    let key = null; // null → token inválido, se cachea igualmente para no re-verificar
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      key = `user:${decoded.id}`;
+    } catch (_) { /* token inválido o expirado → caer a IP */ }
+    if (tokenKeyCache.size >= TOKEN_KEY_CACHE_MAX) {
+      // Desaloja la entrada más antigua (orden de inserción del Map)
+      tokenKeyCache.delete(tokenKeyCache.keys().next().value);
+    }
+    tokenKeyCache.set(token, key);
+    if (key) return key;
+  }
   return `ip:${ipKeyGenerator(req)}`;
 };
 
@@ -89,6 +119,28 @@ const loginLimiter = isTest ? passThrough : rateLimit({
   legacyHeaders:   false,
   message: { success: false, message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
   ...redisStoreOptions('rl:login:'),
+});
+
+// Limiter dedicado para registro: evita creación masiva de empresas/usuarios
+// y spam de correos de bienvenida (A-04). Clave por IP.
+const registerLimiter = isTest ? passThrough : rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max:      5,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { success: false, message: 'Demasiados registros desde esta dirección. Intenta en 1 hora.' },
+  ...redisStoreOptions('rl:register:'),
+});
+
+// Limiter para recuperación de contraseña: frena spam de correos y fuerza bruta
+// de tokens de reset (A-07). Clave por IP.
+const forgotPasswordLimiter = isTest ? passThrough : rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max:      5,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { success: false, message: 'Demasiadas solicitudes de recuperación. Intenta en 15 minutos.' },
+  ...redisStoreOptions('rl:forgot:'),
 });
 
 const swaggerServers = [
@@ -134,10 +186,10 @@ app.get('/health', (req, res) => {
 });
 */
 // ── RUTAS ─────────────────────────────────────────────────────────
-app.use('/api/auth',               require('./routes/auth.routes')(loginLimiter));
+app.use('/api/auth',               require('./routes/auth.routes')({ loginLimiter, registerLimiter }));
 app.use('/api/companies',          require('./routes/company.routes'));
 app.use('/api/roles',              require('./routes/role.routes'));
-app.use('/api/users',              require('./routes/user.routes'));
+app.use('/api/users',              require('./routes/user.routes')({ forgotPasswordLimiter }));
 app.use('/api/customers',          require('./routes/storeCustomer.routes'));
 app.use('/api/suppliers',          require('./routes/supplier.routes'));
 app.use('/api/products',           require('./routes/product.routes'));

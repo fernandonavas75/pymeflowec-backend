@@ -18,9 +18,6 @@ const authenticate = async (req, res, next) => {
 
     const userId = decoded.id;
 
-    // Contexto de sesión para los triggers de audit_logs (user_id)
-    await sequelize.query(`SET LOCAL app.current_user_id = '${userId}'`);
-
     const user = await User.findOne({
       where: { id: userId, status: 'ACTIVE' },
       include: [

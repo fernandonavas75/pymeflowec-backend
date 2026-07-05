@@ -5,6 +5,7 @@ const { User, Role } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
 const crypto = require('crypto');
 const { sendPasswordResetEmail, WelcomeEmail } = require('../utils/mailer');
+const logger = require('../utils/logger');
 
 const userAttrs = { exclude: ['password_hash'] };
 
@@ -108,14 +109,24 @@ const changePassword = async (id, currentPassword, newPassword, companyId, skipC
 };
 
 const forgotPassword = async (email) => {
+  // Respuesta idéntica exista o no el usuario (A-07): evita enumeración de correos.
+  const genericResult = { message: 'Si el correo está registrado, recibirás un enlace de recuperación.' };
+  if (!email || typeof email !== 'string') return genericResult;
+
   const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
-  if (!user) throw new AppError('Usuario no encontrado.', 404);
+  if (!user) return genericResult;
+
   const resetToken = crypto.randomBytes(32).toString('hex');
   const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
   const resetTokenExpires = new Date(Date.now() + 30 * 60 * 1000);
   await user.update({ reset_token: resetTokenHash, reset_token_expires: resetTokenExpires });
-  await sendPasswordResetEmail(user.email, user.full_name, resetToken);
-  return { message: 'Correo de recuperación enviado si el usuario existe.' };
+  try {
+    await sendPasswordResetEmail(user.email, user.full_name, resetToken);
+  } catch (err) {
+    // Un fallo del mailer no debe filtrar que el correo existe (500 solo para emails registrados)
+    logger.error('[forgotPassword] Error enviando correo de recuperación', { message: err.message });
+  }
+  return genericResult;
 };
 const resetPassword = async (token, newPassword) => {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');

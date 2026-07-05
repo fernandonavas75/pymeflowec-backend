@@ -2,26 +2,27 @@
 
 const { body } = require('express-validator');
 
-const createFromOrderRules = [
-  body('order_id').isInt({ min: 1 }).withMessage('order_id debe ser un entero válido.'),
-];
-
-const createManualRules = [
-  body('issue_date').isISO8601().withMessage('issue_date debe ser una fecha válida (ISO 8601).'),
-  body('items').isArray({ min: 1 }).withMessage('La factura debe tener al menos un ítem.'),
+const createRules = [
+  body('customer_id')
+    .optional({ nullable: true })
+    .isInt({ min: 1 }).withMessage('customer_id debe ser un entero positivo.'),
+  body('items')
+    .isArray({ min: 1 }).withMessage('La factura debe tener al menos un ítem.'),
   body('items.*.product_id')
-    .isInt({ min: 1 })
-    .withMessage('Cada ítem debe tener un product_id válido.'),
+    .isInt({ min: 1 }).withMessage('Cada ítem debe tener un product_id válido.'),
   body('items.*.quantity')
-    .isInt({ min: 1 })
-    .withMessage('La cantidad de cada ítem debe ser al menos 1.'),
+    .isInt({ min: 1 }).withMessage('La cantidad de cada ítem debe ser un entero mayor o igual a 1.'),
+  // unit_price se acepta por compatibilidad pero el service usa siempre el sale_price del producto
   body('items.*.unit_price')
-    .isFloat({ min: 0.01 })
-    .withMessage('El precio unitario debe ser mayor a 0.'),
+    .optional({ nullable: true })
+    .isFloat({ min: 0 }).withMessage('El precio unitario debe ser un número mayor o igual a 0.'),
   body('items.*.discount')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('El descuento por línea debe ser un valor positivo.'),
+    .optional({ nullable: true })
+    .isFloat({ min: 0 }).withMessage('El descuento por línea debe ser un valor mayor o igual a 0.'),
+  body('items.*.tax_rate_id')
+    .optional({ nullable: true })
+    .isInt({ min: 1 }).withMessage('tax_rate_id debe ser un entero positivo.'),
+  body('notes').optional().trim(),
 ];
 
-module.exports = { createFromOrderRules, createManualRules };
+module.exports = { createRules };

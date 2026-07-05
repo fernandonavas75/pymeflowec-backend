@@ -24,22 +24,23 @@ API REST del sistema ERP multi-tenant para PYMEs ecuatorianas. Proyecto de tesis
     - [Empresas](#103-empresas--apicompanies)
     - [Roles](#104-roles--apiroles)
     - [Productos y stock](#105-productos-y-stock--apiproducts)
-    - [Clientes](#106-clientes--apicustomers)
-    - [Proveedores](#107-proveedores--apisuppliers)
-    - [Tasas de impuesto](#108-tasas-de-impuesto--apitax-rates)
-    - [Facturas](#109-facturas--apiinvoices)
-    - [Cobros de facturas](#1010-cobros-de-facturas--apiinvoice-payments)
-    - [Movimientos de inventario](#1011-movimientos-de-inventario--apiinventory-movements)
-    - [Caja chica](#1012-caja-chica--apipetty-cash)
-    - [Categorías de egresos](#1013-categorías-de-egresos--apiexpense-categories)
-    - [Egresos](#1014-egresos--apiexpenses)
-    - [Pagos de egresos](#1015-pagos-de-egresos--apiexpense-payments)
-    - [Presupuestos de egresos](#1016-presupuestos-de-egresos--apiexpense-budgets)
-    - [Egresos recurrentes](#1017-egresos-recurrentes--apiexpense-recurring)
-    - [Módulos (plataforma)](#1018-módulos-plataforma--apiplatformmodules)
-    - [Solicitudes de módulos](#1019-solicitudes-de-módulos--apimodule-requests)
-    - [Usuarios de plataforma](#1020-usuarios-de-plataforma--apiplatformusers)
-    - [Logs de auditoría](#1021-logs-de-auditoría--apiaudit-logs)
+    - [Categorías de productos](#106-categorías-de-productos--apiproduct-categories)
+    - [Clientes](#107-clientes--apicustomers)
+    - [Proveedores](#108-proveedores--apisuppliers)
+    - [Tasas de impuesto](#109-tasas-de-impuesto--apitax-rates)
+    - [Facturas](#1010-facturas--apiinvoices)
+    - [Cobros de facturas](#1011-cobros-de-facturas--apiinvoice-payments)
+    - [Movimientos de inventario](#1012-movimientos-de-inventario--apiinventory-movements)
+    - [Caja chica](#1013-caja-chica--apipetty-cash)
+    - [Categorías de egresos](#1014-categorías-de-egresos--apiexpense-categories)
+    - [Egresos](#1015-egresos--apiexpenses)
+    - [Pagos de egresos](#1016-pagos-de-egresos--apiexpense-payments)
+    - [Presupuestos de egresos](#1017-presupuestos-de-egresos--apiexpense-budgets)
+    - [Egresos recurrentes](#1018-egresos-recurrentes--apiexpense-recurring)
+    - [Módulos (plataforma)](#1019-módulos-plataforma--apiplatformmodules)
+    - [Solicitudes de módulos](#1020-solicitudes-de-módulos--apimodule-requests)
+    - [Usuarios de plataforma](#1021-usuarios-de-plataforma--apiplatformusers)
+    - [Logs de auditoría](#1022-logs-de-auditoría--apiaudit-logs)
 11. [Modelos de base de datos](#11-modelos-de-base-de-datos)
 12. [Servicios — lógica de negocio](#12-servicios--lógica-de-negocio)
 13. [Tareas programadas](#13-tareas-programadas-cron-jobs)
@@ -122,10 +123,10 @@ SMTP_PASS=contraseña
 npm install
 
 # Crear la base de datos (ejecutar el schema SQL)
-psql -U postgres -d pymeflowec -f src/database/schema_tesis_v9.sql
+psql -U postgres -d pymeflowec -f src/database/schema_tesis_v10.sql
 
 # (Opcional) Cargar datos de semilla
-psql -U postgres -d pymeflowec -f src/database/seeds_tesis_v8.sql
+psql -U postgres -d pymeflowec -f src/database/seeds_tesis_v10.sql
 
 # Servidor de desarrollo con hot reload
 npm run dev
@@ -162,7 +163,8 @@ src/
 └── utils/
     ├── logger.js             — Winston logger
     ├── mailer.js             — Nodemailer
-    └── ecuadorId.js          — validación cédula/RUC Ecuador
+    ├── ecuadorId.js          — validación cédula/RUC Ecuador
+    └── pagination.js         — helper paginatedResponse()
 ```
 
 ---
@@ -173,13 +175,10 @@ El acceso a cada área funcional se controla por módulo (`CompanyModule`). Cada
 
 | Código | Nombre | Endpoints protegidos |
 |--------|--------|---------------------|
-| `MOD_INVOICING` | Facturación | `/api/customers`, `/api/invoices` |
-| `MOD_SUPPLIERS` | Proveedores | `/api/suppliers` |
-| `MOD_PRODUCTS` | Productos | `/api/products` (excepto `/stock`) |
-| `MOD_INVENTORY` | Inventario | `/api/products/:id/stock`, `/api/inventory-movements` |
-| `MOD_TAX` | Impuestos | `/api/tax-rates` |
-| `MOD_PAYMENTS` | Cobros | `/api/invoice-payments` |
-| `MOD_FINANCE` | Finanzas | `/api/petty-cash`, `/api/expenses`, `/api/expense-categories`, `/api/expense-budgets`, `/api/expense-recurring` |
+| `MOD_INVOICING` | Facturación | `/api/customers`, `/api/invoices`, `/api/invoice-payments` |
+| `MOD_PRODUCTS` | Productos e Inventario | `/api/products`, `/api/products/:id/stock`, `/api/inventory-movements`, `/api/product-categories` |
+| `MOD_FINANCE` | Finanzas | `/api/petty-cash`, `/api/expenses`, `/api/expense-categories`, `/api/expense-budgets`, `/api/expense-recurring`, `/api/expense-payments` |
+| `MOD_PARAMS` | Parámetros del sistema | `/api/suppliers`, `/api/tax-rates`, `/api/audit-logs/my-company` |
 
 ---
 
@@ -438,7 +437,7 @@ Devuelve los roles con `scope=STORE`. Usado para poblar el selector al crear usu
 
 ### 10.5 Productos y stock — `/api/products`
 
-Requiere módulo `MOD_PRODUCTS` (excepto stock que requiere `MOD_INVENTORY`).
+Requiere módulo `MOD_PRODUCTS`.
 
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
@@ -482,7 +481,26 @@ Requiere módulo `MOD_PRODUCTS` (excepto stock que requiere `MOD_INVENTORY`).
 
 ---
 
-### 10.6 Clientes — `/api/customers`
+### 10.6 Categorías de productos — `/api/product-categories`
+
+Requiere módulo `MOD_PRODUCTS`.
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| GET | `/api/product-categories` | Todos STORE + plataforma | Listar categorías |
+| GET | `/api/product-categories/:id` | Todos STORE + plataforma | Detalle |
+| POST | `/api/product-categories` | STORE_ADMIN | Crear categoría |
+| PUT | `/api/product-categories/:id` | STORE_ADMIN | Actualizar |
+| DELETE | `/api/product-categories/:id` | STORE_ADMIN | Eliminar |
+
+**Body POST:**
+```json
+{ "name": "Lácteos", "description": "Productos derivados de la leche" }
+```
+
+---
+
+### 10.7 Clientes — `/api/customers`
 
 Requiere módulo `MOD_INVOICING`.
 
@@ -513,9 +531,9 @@ Requiere módulo `MOD_INVOICING`.
 
 ---
 
-### 10.7 Proveedores — `/api/suppliers`
+### 10.8 Proveedores — `/api/suppliers`
 
-Requiere módulo `MOD_SUPPLIERS`.
+Requiere módulo `MOD_PARAMS`.
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
@@ -538,9 +556,9 @@ Requiere módulo `MOD_SUPPLIERS`.
 
 ---
 
-### 10.8 Tasas de impuesto — `/api/tax-rates`
+### 10.9 Tasas de impuesto — `/api/tax-rates`
 
-Requiere módulo `MOD_TAX`. **IVA Ecuador: 15% fijo.**
+Requiere módulo `MOD_PARAMS`. **IVA Ecuador: 15% fijo.**
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
@@ -561,7 +579,7 @@ Requiere módulo `MOD_TAX`. **IVA Ecuador: 15% fijo.**
 
 ---
 
-### 10.9 Facturas — `/api/invoices`
+### 10.10 Facturas — `/api/invoices`
 
 Requiere módulo `MOD_INVOICING`.
 
@@ -623,9 +641,9 @@ Proceso interno de creación:
 
 ---
 
-### 10.10 Cobros de facturas — `/api/invoice-payments`
+### 10.11 Cobros de facturas — `/api/invoice-payments`
 
-Requiere módulo `MOD_PAYMENTS`.
+Requiere módulo `MOD_INVOICING`.
 
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
@@ -654,9 +672,9 @@ Requiere módulo `MOD_PAYMENTS`.
 
 ---
 
-### 10.11 Movimientos de inventario — `/api/inventory-movements`
+### 10.12 Movimientos de inventario — `/api/inventory-movements`
 
-Requiere módulo `MOD_INVENTORY`.
+Requiere módulo `MOD_PRODUCTS`.
 
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
@@ -667,7 +685,7 @@ Requiere módulo `MOD_INVENTORY`.
 
 ---
 
-### 10.12 Caja chica — `/api/petty-cash`
+### 10.13 Caja chica — `/api/petty-cash`
 
 Requiere módulo `MOD_FINANCE`.
 
@@ -695,7 +713,7 @@ Requiere módulo `MOD_FINANCE`.
 
 ---
 
-### 10.13 Categorías de egresos — `/api/expense-categories`
+### 10.14 Categorías de egresos — `/api/expense-categories`
 
 Requiere módulo `MOD_FINANCE`.
 
@@ -714,7 +732,7 @@ Requiere módulo `MOD_FINANCE`.
 
 ---
 
-### 10.14 Egresos — `/api/expenses`
+### 10.15 Egresos — `/api/expenses`
 
 Requiere módulo `MOD_FINANCE`. Roles: STORE_ADMIN + plataforma.
 
@@ -740,7 +758,7 @@ Requiere módulo `MOD_FINANCE`. Roles: STORE_ADMIN + plataforma.
 
 ---
 
-### 10.15 Pagos de egresos — `/api/expense-payments`
+### 10.16 Pagos de egresos — `/api/expense-payments`
 
 Requiere módulo `MOD_FINANCE`.
 
@@ -763,7 +781,7 @@ Requiere módulo `MOD_FINANCE`.
 
 ---
 
-### 10.16 Presupuestos de egresos — `/api/expense-budgets`
+### 10.17 Presupuestos de egresos — `/api/expense-budgets`
 
 Requiere módulo `MOD_FINANCE`. Solo STORE_ADMIN.
 
@@ -787,7 +805,7 @@ Requiere módulo `MOD_FINANCE`. Solo STORE_ADMIN.
 
 ---
 
-### 10.17 Egresos recurrentes — `/api/expense-recurring`
+### 10.18 Egresos recurrentes — `/api/expense-recurring`
 
 Requiere módulo `MOD_FINANCE`. Solo STORE_ADMIN.
 
@@ -823,7 +841,7 @@ Plantillas que el job cron procesa para generar egresos automáticamente.
 
 ---
 
-### 10.18 Módulos (plataforma) — `/api/platform/modules`
+### 10.19 Módulos (plataforma) — `/api/platform/modules`
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
@@ -838,16 +856,17 @@ Plantillas que el job cron procesa para generar egresos automáticamente.
 {
   "success": true,
   "data": [
-    { "id": 1, "code": "MOD_INVOICING", "name": "Facturación", "status": "active" },
-    { "id": 2, "code": "MOD_INVENTORY", "name": "Inventario",  "status": "pending" },
-    { "id": 3, "code": "MOD_FINANCE",   "name": "Finanzas",    "status": "available" }
+    { "id": 1, "code": "MOD_INVOICING", "name": "Facturación",        "status": "active" },
+    { "id": 2, "code": "MOD_PRODUCTS",  "name": "Productos",           "status": "pending" },
+    { "id": 3, "code": "MOD_FINANCE",   "name": "Finanzas",            "status": "available" },
+    { "id": 4, "code": "MOD_PARAMS",    "name": "Parámetros sistema",  "status": "available" }
   ]
 }
 ```
 
 ---
 
-### 10.19 Solicitudes de módulos — `/api/module-requests`
+### 10.20 Solicitudes de módulos — `/api/module-requests`
 
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
@@ -864,7 +883,7 @@ Plantillas que el job cron procesa para generar egresos automáticamente.
 
 ---
 
-### 10.20 Usuarios de plataforma — `/api/platform/users`
+### 10.21 Usuarios de plataforma — `/api/platform/users`
 
 Requieren `PLATFORM_ADMIN` salvo lectura.
 
@@ -879,7 +898,7 @@ Requieren `PLATFORM_ADMIN` salvo lectura.
 
 ---
 
-### 10.21 Logs de auditoría — `/api/audit-logs`
+### 10.22 Logs de auditoría — `/api/audit-logs`
 
 Requiere scope PLATFORM.
 
@@ -915,6 +934,7 @@ Todos los modelos están en el schema `erp`.
 | `StoreCustomer` | `store_customers` | ✓ | Clientes de tienda |
 | `Supplier` | `suppliers` | ✓ | Proveedores de tienda |
 | `TaxRate` | `tax_rates` | — | Tasas de IVA por empresa |
+| `ProductCategory` | `product_categories` | — | Categorías de productos |
 | `Product` | `products` | ✓ | Catálogo de productos con stock |
 | `Invoice` | `invoices` | ✓ | Facturas emitidas |
 | `InvoiceDetail` | `invoice_details` | — | Líneas de cada factura |
@@ -954,6 +974,7 @@ Todos los modelos están en el schema `erp`.
 | `user.service.js` | CRUD de usuarios de tienda, cambio de estado |
 | `company.service.js` | CRUD de empresas (plataforma) |
 | `product.service.js` | CRUD de productos, ajuste de stock |
+| `productCategory.service.js` | CRUD de categorías de productos |
 | `storeCustomer.service.js` | CRUD de clientes |
 | `supplier.service.js` | CRUD de proveedores |
 | `taxRate.service.js` | CRUD de tasas de IVA |

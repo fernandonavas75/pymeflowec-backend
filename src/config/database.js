@@ -1,10 +1,30 @@
 'use strict';
 
 require('dotenv').config();
+const fs   = require('fs');
+const path = require('path');
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
 const isProduction = process.env.NODE_ENV === 'production';
+
+// SSL con validación de certificado (A-05): se usa el CA bundle global de Amazon RDS
+// (https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem), sobreescribible
+// vía DB_SSL_CA_PATH. Fail-fast si SSL está habilitado y el bundle no puede leerse.
+const useSsl = isProduction || process.env.DB_SSL === 'true';
+let sslDialectOptions = {};
+if (useSsl) {
+  const caPath = process.env.DB_SSL_CA_PATH
+    || path.join(__dirname, 'certs', 'rds-global-bundle.pem');
+  let ca;
+  try {
+    ca = fs.readFileSync(caPath, 'utf8');
+  } catch (err) {
+    console.error(`[FATAL] SSL de BD habilitado pero no se pudo leer el CA bundle en "${caPath}": ${err.message}`);
+    process.exit(1);
+  }
+  sslDialectOptions = { ssl: { require: true, rejectUnauthorized: true, ca } };
+}
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -15,10 +35,8 @@ const sequelize = new Sequelize(
     port:    parseInt(process.env.DB_PORT) || 5432,
     dialect: 'postgres',
 
-    // SSL obligatorio en AWS RDS, desactivado en local
-    dialectOptions: isProduction || process.env.DB_SSL === 'true'
-      ? { ssl: { require: true, rejectUnauthorized: false } }
-      : {},
+    // SSL obligatorio en AWS RDS (con validación de certificado), desactivado en local
+    dialectOptions: sslDialectOptions,
 
     // Pool de conexiones — importante para múltiples tenants simultáneos
     pool: {

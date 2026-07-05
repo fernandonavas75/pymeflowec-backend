@@ -19,7 +19,7 @@ const generateTokens = (user) => {
 
   const refresh_token = jwt.sign(
     payload,
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh',
+    process.env.JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 
@@ -72,10 +72,7 @@ const me = async (userId) => {
 const refresh = async (token) => {
   let payload;
   try {
-    payload = jwt.verify(
-      token,
-      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh'
-    );
+    payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
   } catch {
     throw new AppError('Refresh token inválido o expirado.', 401);
   }
@@ -96,7 +93,7 @@ const refresh = async (token) => {
 };
 
 // Registro de nueva empresa + usuario admin
-const TRIAL_DAYS = 15;
+const TRIAL_DAYS = 7;
 
 const register = async (data) => {
   const { company_name, company_ruc, company_email, company_phone,

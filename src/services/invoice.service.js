@@ -112,19 +112,32 @@ const create = async (data, companyId, userId) => {
   }
 
   return sequelize.transaction(async (t) => {
+    if (customer_id) {
+      const customer = await StoreCustomer.findOne({
+        where: { id: customer_id, company_id: companyId },
+        transaction: t,
+      });
+      if (!customer) throw new AppError('Cliente no encontrado.', 404);
+    }
+
     const invoice_number = await generateInvoiceNumber(companyId, t);
     let subtotal   = 0;
     let tax_amount = 0;
     const details  = [];
 
     for (const item of items) {
+      const qty = parseInt(item.quantity, 10);
+      if (!Number.isInteger(qty) || qty < 1) {
+        throw new AppError('La cantidad de cada ítem debe ser un entero mayor o igual a 1.', 400);
+      }
+
       const product = await Product.findOne({
         where: { id: item.product_id, company_id: companyId, status: 'ACTIVE' },
         transaction: t,
       });
       if (!product) throw new AppError(`Producto ${item.product_id} no encontrado o inactivo.`, 404);
 
-      if (product.stock < item.quantity) {
+      if (product.stock < qty) {
         throw new AppError(`Stock insuficiente para "${product.name}".`, 400);
       }
 
@@ -136,9 +149,12 @@ const create = async (data, companyId, userId) => {
         if (tr) taxPct = parseFloat(tr.percentage);
       }
 
-      const qty         = parseInt(item.quantity, 10);
-      const unitPrice   = parseFloat(item.unit_price ?? product.sale_price);
+      // El precio siempre sale del catálogo — el valor enviado por el cliente se ignora
+      const unitPrice   = parseFloat(product.sale_price);
       const discount    = parseFloat(item.discount ?? 0);
+      if (!Number.isFinite(discount) || discount < 0) {
+        throw new AppError(`El descuento de "${product.name}" debe ser un valor mayor o igual a 0.`, 400);
+      }
       const lineGross   = parseFloat((unitPrice * qty).toFixed(2));
       if (discount > lineGross) {
         throw new AppError(`El descuento supera el valor de la línea para "${product.name}".`, 400);

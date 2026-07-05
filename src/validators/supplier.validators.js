@@ -3,48 +3,44 @@
 const { body } = require('express-validator');
 const { validateCedula, validateRuc } = require('../utils/ecuadorId');
 
-const createRules = [
-  body('business_name').trim().notEmpty().withMessage('La razón social es requerida.'),
-  body('ruc')
+// Valida cédula (10 dígitos) o RUC (13 dígitos) ecuatorianos
+const rucRule = (field) =>
+  field
     .optional({ checkFalsy: true }).trim()
-    .isLength({ min: 10 }).withMessage('El RUC debe tener al menos 10 caracteres.')
     .custom((value) => {
-      if (!value) return true;
       if (value.length === 10) {
-        if (!validateCedula(value)) throw new Error('Los datos ingresados no son correctos.');
+        if (!validateCedula(value)) throw new Error('La cédula ingresada no es válida.');
       } else if (value.length === 13) {
-        if (!validateRuc(value)) throw new Error('Los datos ingresados no son correctos.');
+        if (!validateRuc(value)) throw new Error('El RUC ingresado no es válido.');
+      } else {
+        throw new Error('El RUC debe tener 10 (cédula) o 13 (RUC) dígitos.');
       }
       return true;
-    }),
-  body('contact_name').optional().trim(),
-  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Email inválido.').normalizeEmail(),
-  body('phone').optional().trim(),
-  body('address').optional().trim(),
-  body('payment_terms').optional().trim(),
-  body('notes').optional().trim(),
+    });
+
+const createRules = [
+  body('name').trim().notEmpty().withMessage('El nombre es requerido.')
+    .isLength({ min: 2, max: 150 }).withMessage('El nombre debe tener entre 2 y 150 caracteres.'),
+  rucRule(body('ruc')),
+  body('email').optional({ checkFalsy: true }).trim()
+    .isEmail().withMessage('Email inválido.').normalizeEmail(),
+  body('phone').optional({ checkFalsy: true }).trim()
+    .isLength({ max: 20 }).withMessage('El teléfono no puede exceder 20 caracteres.'),
+  body('address').optional({ checkFalsy: true }).trim()
+    .isLength({ max: 255 }).withMessage('La dirección no puede exceder 255 caracteres.'),
 ];
 
 const updateRules = [
-  body('business_name').optional().trim().notEmpty().withMessage('La razón social no puede estar vacía.'),
-  body('ruc')
-    .optional({ checkFalsy: true }).trim()
-    .isLength({ min: 10 })
-    .custom((value) => {
-      if (!value) return true;
-      if (value.length === 10) {
-        if (!validateCedula(value)) throw new Error('Los datos ingresados no son correctos.');
-      } else if (value.length === 13) {
-        if (!validateRuc(value)) throw new Error('Los datos ingresados no son correctos.');
-      }
-      return true;
-    }),
-  body('contact_name').optional().trim(),
-  body('email').optional({ checkFalsy: true }).isEmail().normalizeEmail(),
-  body('phone').optional().trim(),
-  body('address').optional().trim(),
-  body('payment_terms').optional().trim(),
-  body('notes').optional().trim(),
+  body('name').optional().trim()
+    .notEmpty().withMessage('El nombre no puede estar vacío.')
+    .isLength({ min: 2, max: 150 }).withMessage('El nombre debe tener entre 2 y 150 caracteres.'),
+  rucRule(body('ruc')),
+  body('email').optional({ checkFalsy: true }).trim()
+    .isEmail().withMessage('Email inválido.').normalizeEmail(),
+  body('phone').optional({ checkFalsy: true }).trim()
+    .isLength({ max: 20 }).withMessage('El teléfono no puede exceder 20 caracteres.'),
+  body('address').optional({ checkFalsy: true }).trim()
+    .isLength({ max: 255 }).withMessage('La dirección no puede exceder 255 caracteres.'),
 ];
 
 module.exports = { createRules, updateRules };

@@ -115,11 +115,11 @@ const { loginRules, refreshRules, registerRules, changePasswordRules } = require
  *         description: Contraseña actualizada
  */
 
-module.exports = (loginLimiter) => {
+module.exports = ({ loginLimiter, registerLimiter }) => {
   const router = require('express').Router();
 
-  router.post('/login',    loginLimiter, validate(loginRules),    controller.login);
-  router.post('/register', validate(registerRules),               controller.register);
+  router.post('/login',    loginLimiter,    validate(loginRules),    controller.login);
+  router.post('/register', registerLimiter, validate(registerRules), controller.register);
   router.post('/refresh',  validate(refreshRules),                controller.refresh);
   router.get('/me',        authenticate,                          controller.me);
   router.patch('/change-password',

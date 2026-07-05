@@ -21,8 +21,13 @@ Thumbs.db
 # Sequelize
 .sequelizerc
 
+# SonarQube — contiene token sensible
+sonar-project.properties
+
 # Build / producción
 dist/
 build/
 /.claude
 /.claude
+.scannerwork/.sonartmp/bridge-bundle/package/bin/all-SNBWZZ3D.json
+/.scannerwork

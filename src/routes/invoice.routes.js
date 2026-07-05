@@ -5,6 +5,8 @@ const controller             = require('../controllers/invoice.controller');
 const authenticate           = require('../middlewares/authenticate');
 const platformStoreAccess    = require('../middlewares/platformStoreAccess');
 const { checkModuleExpiry }  = require('../middlewares/checkModuleExpiry');
+const validate               = require('../middlewares/validate');
+const { createRules }        = require('../validators/invoice.validators');
 
 /**
  * @swagger
@@ -48,16 +50,17 @@ const { checkModuleExpiry }  = require('../middlewares/checkModuleExpiry');
  *                 type: array
  *                 items:
  *                   type: object
- *                   required: [product_id, quantity, unit_price]
+ *                   required: [product_id, quantity]
  *                   properties:
  *                     product_id:  { type: integer }
- *                     quantity:    { type: number }
- *                     unit_price:  { type: number }
- *                     discount:    { type: number }
+ *                     quantity:    { type: integer, minimum: 1 }
+ *                     discount:    { type: number, minimum: 0 }
  *               notes: { type: string }
  *     responses:
  *       201:
- *         description: Factura creada
+ *         description: Factura creada (el precio unitario se toma del catálogo de productos)
+ *       422:
+ *         description: Datos de entrada inválidos
  */
 
 /**
@@ -98,7 +101,7 @@ router.use(authenticate, checkModuleExpiry('MOD_INVOICING'));
 
 router.get('/',             platformStoreAccess('STORE'),                        controller.list);
 router.get('/:id',          platformStoreAccess('STORE'),                        controller.getById);
-router.post('/',            platformStoreAccess('STORE_ADMIN', 'STORE_SELLER'),  controller.create);
+router.post('/',            platformStoreAccess('STORE_ADMIN', 'STORE_SELLER'),  validate(createRules), controller.create);
 router.patch('/:id/cancel', platformStoreAccess('STORE_ADMIN'),                  controller.cancel);
 
 module.exports = router;
