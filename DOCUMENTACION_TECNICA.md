@@ -163,7 +163,7 @@ pymeflowec-backend/
 │   │   ├── database.js              ← Instancia Sequelize + pool + SSL condicional
 │   │   └── redis.js                 ← Cliente ioredis opcional (fallback in-memory)
 │   │
-│   ├── models/                      ← 24 modelos Sequelize (schema: erp)
+│   ├── models/                      ← 25 modelos Sequelize (schema: erp)
 │   │   ├── index.js                 ← Registro de todas las asociaciones
 │   │   ├── Role.js
 │   │   ├── Company.js
@@ -173,6 +173,7 @@ pymeflowec-backend/
 │   │   ├── CompanyModuleRequest.js
 │   │   ├── StoreCustomer.js
 │   │   ├── Supplier.js
+│   │   ├── ProductCategory.js
 │   │   ├── Product.js
 │   │   ├── TaxRate.js
 │   │   ├── Invoice.js
@@ -191,8 +192,8 @@ pymeflowec-backend/
 │   │
 │   ├── controllers/                 ← 21 controllers: manejo HTTP, delegan a services
 │   ├── services/                    ← 21 services: lógica de negocio pura
-│   ├── routes/                      ← 21 archivos de rutas + validators anidados
-│   ├── validators/                  ← 14 archivos de reglas express-validator
+│   ├── routes/                      ← 22 archivos de rutas
+│   ├── validators/                  ← 25 archivos de reglas express-validator
 │   ├── middlewares/                 ← 7 middlewares reutilizables
 │   ├── jobs/
 │   │   ├── expireModules.job.js     ← Cron: desactiva módulos vencidos (diario 00:00)
@@ -200,7 +201,8 @@ pymeflowec-backend/
 │   └── utils/
 │       ├── logger.js                ← Winston: console + rotativo 10MB/archivo
 │       ├── mailer.js                ← Nodemailer SMTP transporter
-│       └── ecuadorId.js             ← Validación cédula (mod-10) y RUC (mod-11)
+│       ├── ecuadorId.js             ← Validación cédula (mod-10) y RUC (mod-11)
+│       └── pagination.js            ← Helper paginatedResponse()
 │
 ├── logs/                            ← Archivos de log (gitignored)
 ├── package.json
@@ -235,7 +237,7 @@ Todos los modelos usan el esquema PostgreSQL `erp`. Las convenciones globales de
 | Nombre | Scope | Descripción |
 |--------|-------|-------------|
 | `PLATFORM_ADMIN` | PLATFORM | Administrador de la plataforma SaaS |
-| `PLATFORM_STAFF` | PLATFORM | Soporte técnico (solo lectura) |
+| `PLATFORM_SUPPORT` | PLATFORM | Soporte técnico (solo lectura) |
 | `STORE_ADMIN` | STORE | Administrador de empresa/tienda |
 | `STORE_SELLER` | STORE | Vendedor: facturas y cobros |
 | `STORE_WAREHOUSE` | STORE | Bodeguero: ajustes de stock |
@@ -306,13 +308,10 @@ Todos los modelos usan el esquema PostgreSQL `erp`. Las convenciones globales de
 
 | Código | Descripción |
 |--------|-------------|
-| `MOD_INVOICING` | Facturación y gestión de clientes |
-| `MOD_SUPPLIERS` | Gestión de proveedores |
-| `MOD_PRODUCTS` | Catálogo de productos |
-| `MOD_INVENTORY` | Movimientos de inventario |
-| `MOD_TAX` | Tasas de impuesto |
-| `MOD_PAYMENTS` | Pagos de facturas |
+| `MOD_INVOICING` | Facturación: clientes, facturas y cobros |
+| `MOD_PRODUCTS` | Productos, categorías e inventario |
 | `MOD_FINANCE` | Finanzas: caja chica y egresos |
+| `MOD_PARAMS` | Parámetros del sistema: proveedores, impuestos y auditoría |
 
 ---
 
@@ -401,6 +400,19 @@ Todos los modelos usan el esquema PostgreSQL `erp`. Las convenciones globales de
 | created_at / updated_at | TIMESTAMP | NOT NULL |
 
 > **Nota:** El IVA vigente en Ecuador es del **15%**.
+
+---
+
+#### `product_categories` — Categorías de Productos
+
+| Columna | Tipo SQL | Restricciones |
+|---------|----------|---------------|
+| id | BIGINT | PK, autoincrement |
+| company_id | BIGINT | FK → companies.id, NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| description | TEXT | nullable |
+| created_at | TIMESTAMP | NOT NULL |
+| updated_at | TIMESTAMP | NOT NULL |
 
 ---
 
@@ -758,7 +770,8 @@ User ─────────────────────────
 3. Carga User.findByPk(payload.id) con include de Role y Company
 4. Valida que el usuario esté ACTIVE y no eliminado (soft-delete)
 5. Construye req.user = { id, email, role, company_id, company, ... }
-6. Ejecuta SET LOCAL app.current_user_id = <id> en PostgreSQL (para triggers de auditoría)
+6. En métodos de escritura, registra un hook res.on('finish') que completa
+   user_id, IP y User-Agent en los audit_logs creados por los triggers
 7. Llama next()
 ```
 
@@ -941,15 +954,27 @@ class AppError extends Error {
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
-| GET | `/` | JWT | `MOD_SUPPLIERS` |
-| GET | `/:id` | JWT | `MOD_SUPPLIERS` |
-| POST | `/` | JWT + STORE_ADMIN | `MOD_SUPPLIERS` |
-| PUT | `/:id` | JWT + STORE_ADMIN | `MOD_SUPPLIERS` |
-| DELETE | `/:id` | JWT + STORE_ADMIN | `MOD_SUPPLIERS` |
+| GET | `/` | JWT | `MOD_PARAMS` |
+| GET | `/:id` | JWT | `MOD_PARAMS` |
+| POST | `/` | JWT + STORE_ADMIN | `MOD_PARAMS` |
+| PUT | `/:id` | JWT + STORE_ADMIN | `MOD_PARAMS` |
+| DELETE | `/:id` | JWT + STORE_ADMIN | `MOD_PARAMS` |
 
 ---
 
-### 8.6 Productos — `/api/products`
+### 8.6 Categorías de Productos — `/api/product-categories`
+
+| Método | Ruta | Auth | Guard de módulo |
+|--------|------|------|----------------|
+| GET | `/` | JWT | `MOD_PRODUCTS` |
+| GET | `/:id` | JWT | `MOD_PRODUCTS` |
+| POST | `/` | STORE_ADMIN | `MOD_PRODUCTS` |
+| PUT | `/:id` | STORE_ADMIN | `MOD_PRODUCTS` |
+| DELETE | `/:id` | STORE_ADMIN | `MOD_PRODUCTS` |
+
+---
+
+### 8.7 Productos — `/api/products`
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
@@ -958,25 +983,25 @@ class AppError extends Error {
 | POST | `/` | STORE_ADMIN | `MOD_PRODUCTS` |
 | POST | `/bulk` | STORE_ADMIN | `MOD_PRODUCTS` |
 | PUT | `/:id` | STORE_ADMIN | `MOD_PRODUCTS` |
-| PATCH | `/:id/stock` | STORE_ADMIN / STORE_WAREHOUSE | `MOD_INVENTORY` |
+| PATCH | `/:id/stock` | STORE_ADMIN / STORE_WAREHOUSE | `MOD_PRODUCTS` |
 | PATCH | `/:id/activate` | STORE_ADMIN | `MOD_PRODUCTS` |
 | PATCH | `/:id/deactivate` | STORE_ADMIN | `MOD_PRODUCTS` |
 | DELETE | `/:id` | STORE_ADMIN | `MOD_PRODUCTS` |
 
 ---
 
-### 8.7 Tasas de Impuesto — `/api/tax-rates`
+### 8.8 Tasas de Impuesto — `/api/tax-rates`
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
-| GET | `/` | JWT | `MOD_TAX` |
-| GET | `/:id` | JWT | `MOD_TAX` |
-| POST | `/` | STORE_ADMIN | `MOD_TAX` |
-| PUT | `/:id` | STORE_ADMIN | `MOD_TAX` |
+| GET | `/` | JWT | `MOD_PARAMS` |
+| GET | `/:id` | JWT | `MOD_PARAMS` |
+| POST | `/` | STORE_ADMIN | `MOD_PARAMS` |
+| PUT | `/:id` | STORE_ADMIN | `MOD_PARAMS` |
 
 ---
 
-### 8.8 Facturas — `/api/invoices`
+### 8.9 Facturas — `/api/invoices`
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
@@ -987,29 +1012,29 @@ class AppError extends Error {
 
 ---
 
-### 8.9 Cobros de Factura — `/api/invoice-payments`
+### 8.10 Cobros de Factura — `/api/invoice-payments`
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
-| GET | `/` | JWT | `MOD_PAYMENTS` |
-| GET | `/:id` | JWT | `MOD_PAYMENTS` |
-| POST | `/` | STORE_ADMIN / STORE_SELLER | `MOD_PAYMENTS` |
-| DELETE | `/:id` | STORE_ADMIN | `MOD_PAYMENTS` |
+| GET | `/` | JWT | `MOD_INVOICING` |
+| GET | `/:id` | JWT | `MOD_INVOICING` |
+| POST | `/` | STORE_ADMIN / STORE_SELLER | `MOD_INVOICING` |
+| DELETE | `/:id` | STORE_ADMIN | `MOD_INVOICING` |
 
 ---
 
-### 8.10 Movimientos de Inventario — `/api/inventory-movements`
+### 8.11 Movimientos de Inventario — `/api/inventory-movements`
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
-| GET | `/` | JWT | `MOD_INVENTORY` |
-| GET | `/:id` | JWT | `MOD_INVENTORY` |
+| GET | `/` | JWT | `MOD_PRODUCTS` |
+| GET | `/:id` | JWT | `MOD_PRODUCTS` |
 
 > Endpoints de solo lectura. Los movimientos se crean automáticamente por facturas y ajustes de stock.
 
 ---
 
-### 8.11 Caja Chica — `/api/petty-cash`
+### 8.12 Caja Chica — `/api/petty-cash`
 
 | Método | Ruta | Auth | Guard de módulo |
 |--------|------|------|----------------|
@@ -1022,7 +1047,7 @@ class AppError extends Error {
 
 ---
 
-### 8.12 Egresos y Finanzas — `/api/expenses*`
+### 8.13 Egresos y Finanzas — `/api/expenses*`
 
 | Módulo | Base Path | Endpoints disponibles |
 |--------|-----------|----------------------|
@@ -1036,7 +1061,7 @@ Todos requieren `authenticate + checkModuleExpiry('MOD_FINANCE')`.
 
 ---
 
-### 8.13 Plataforma — `/api/platform` y `/api/module-requests`
+### 8.14 Plataforma — `/api/platform` y `/api/module-requests`
 
 | Endpoint | Auth | Descripción |
 |----------|------|-------------|
@@ -1057,7 +1082,7 @@ Todos requieren `authenticate + checkModuleExpiry('MOD_FINANCE')`.
 
 ---
 
-### 8.14 Auditoría — `/api/audit-logs`
+### 8.15 Auditoría — `/api/audit-logs`
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
@@ -1142,7 +1167,13 @@ El servicio más complejo del sistema. Gestiona el ciclo de vida completo de una
 
 ---
 
-### 9.4 `expenseRecurring.service.js` + Cron
+### 9.4 `productCategory.service.js`
+
+CRUD estándar de categorías de productos por empresa. Verifica unicidad de nombre dentro del mismo `company_id` en operaciones de creación y actualización.
+
+---
+
+### 9.5 `expenseRecurring.service.js` + Cron
 
 El cron job `recurringExpenses.job.js` llama a este servicio diariamente.
 
@@ -1649,7 +1680,7 @@ Hash result: $2b$10$<salt><hash> (60 caracteres)
 
 ```
 Algoritmo: HS256 (HMAC + SHA-256)
-Clave: JWT_SECRET (mínimo 32 caracteres — pendiente validación B-02)
+Clave: JWT_SECRET (mínimo 32 caracteres — validado al arranque en app.js, B-02 resuelto)
 Access token expiry: JWT_EXPIRES_IN (default: 8h)
 Refresh token expiry: JWT_REFRESH_EXPIRES_IN (default: 7d)
 ```
@@ -1681,12 +1712,11 @@ La tabla `audit_logs` registra toda operación de escritura en la base de datos:
 - `UPDATE` → `old_values` antes, `new_values` después
 - `DELETE` → `old_values` contiene el registro eliminado
 
-El middleware `authenticate` establece la variable de sesión PostgreSQL:
-```sql
-SET LOCAL app.current_user_id = <user_id>;
-```
-
-Esto permite que triggers PostgreSQL lean `current_setting('app.current_user_id')` para registrar quién realizó la operación sin necesidad de pasar el ID explícitamente.
+Los triggers de PostgreSQL crean el registro de auditoría con `user_id` NULL (la variable de
+sesión `app.current_user_id` no es fiable con el pool de conexiones de Sequelize). El middleware
+`authenticate` completa esos registros al terminar cada request de escritura exitoso (2xx):
+un hook `res.on('finish')` ejecuta un `UPDATE` parametrizado sobre `erp.audit_logs` que rellena
+`user_id`, `ip_address` y `user_agent` en las filas recién creadas.
 
 ### HTTP Request Logging
 
